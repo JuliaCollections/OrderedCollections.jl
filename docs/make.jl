@@ -1,32 +1,19 @@
 using Documenter
-using DataStructures
+using OrderedCollections
 
 
 makedocs(
     format = :html,
-    sitename = "DataStructures.jl",
+    sitename = "OrderedCollections.jl",
     pages = [
         "index.md",
-        "deque.md",
-        "circ_buffer.md",
-        "circ_deque.md",
-        "stack_and_queue.md",
-        "priority-queue.md",
-        "accumulators.md",
-        "disjoint_sets.md",
-        "heaps.md",
         "ordered_containers.md",
-        "default_dict.md",
-        "trie.md",
-        "linked_list.md",
-        "intset.md",
-        "sorted_containers.md",
     ]
 )
 
 deploydocs(
-    repo = "github.com/JuliaCollections/DataStructures.jl.git",
-    julia  = "0.6",
+    repo = "github.com/JuliaCollections/OrderedCollections.jl.git",
+    julia  = "0.7",
     latest = "master",
     target = "build",
     deps = nothing,  # we use the `format = :html`, without `mkdocs`

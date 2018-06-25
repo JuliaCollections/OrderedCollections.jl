@@ -82,7 +82,7 @@ v0.4.3 / 2016-02-10
   * Stack and Queue are now iterable, with both the standard iterator and a reverse iterator for each type. The old iter function is now deprecated
   * Hash and == functions implemented for the Deque type
   * CircularBuffer type has been added
-  * Many deprecation warnings were deleted (https://github.com/JuliaLang/DataStructures.jl/pull/161)
+  * Many deprecation warnings were deleted (https://github.com/JuliaLang/OrderedCollections.jl/pull/161)
   * Ordered sets now have indexing
   * Performance improvements to OrderedDict
 
@@ -91,7 +91,7 @@ v0.4.2 / 2016-01-13
 ==================
 
   * Fix OrderedDict constructors (with tests)
-  * Add IntSet to DataStructures 
+  * Add IntSet to OrderedCollections 
     (see #114, https://github.com/JuliaLang/julia/pull/10065)
   * Dead code, tree.jl removal
 
@@ -279,7 +279,7 @@ v0.2.11 / 2014-04-10
   * Update Trie tests.
   * Clean up code. Follow Dict interface more closely.
   * Added working test of make_set!
-  * Added make_set! to exports in DataStructures.jl
+  * Added make_set! to exports in OrderedCollections.jl
   * Added make_set! for arbitrary typed DisjointSets
   * Changed length(s.parents) to length(s)
   * Added version of make_set! which automatically chooses the new element as the next available one
@@ -287,7 +287,7 @@ v0.2.11 / 2014-04-10
   * Added make_set to add single element as a new disjoint set, with its parent equal to itself
   * Implemented list iterator functions
   * add list and binary tree. closes #17
-  * moving Trie to DataStructures
+  * moving Trie to OrderedCollections
 
 v0.2.10 / 2014-03-02
 ====================
@@ -370,7 +370,7 @@ v0.2.5 / 2013-10-08
   * add integer disjoint set
   * change names to conform to Dequeue interface
   * change default block size, which seems a good balance
-  * renamed to DataStructures
+  * renamed to OrderedCollections
   * add stack and queue (tested)
   * add Dequeue (tested)
   * Initial commit

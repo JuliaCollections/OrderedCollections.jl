@@ -1,12 +1,12 @@
-using DataStructures
+using OrderedCollections
 using Compat
 using Compat.Test
 using Compat.Random
 using Compat.Serialization
 
-import DataStructures: IntSet
+import OrderedCollections: IntSet
 
-@test isempty(detect_ambiguities(Base, Core, DataStructures))
+@test isempty(detect_ambiguities(Base, Core, OrderedCollections))
 
 using Primes
 
@@ -35,7 +35,7 @@ if length(ARGS) > 0
     tests = ARGS
 end
 
-@testset "DataStructures" begin
+@testset "OrderedCollections" begin
 
 for t in tests
     fp = joinpath(dirname(@__FILE__), "test_$t.jl")

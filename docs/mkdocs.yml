@@ -1,6 +1,6 @@
-site_name:        DataStructures.jl
-repo_url:         https://github.com/JuliaCollections/DataStructures.jl
-site_description: Documentation for the Julia DataStructures package
+site_name:        OrderedCollections.jl
+repo_url:         https://github.com/JuliaCollections/OrderedCollections.jl
+site_description: Documentation for the Julia OrderedCollections package
 site_author:      JuliaCollections
 
 theme: readthedocs

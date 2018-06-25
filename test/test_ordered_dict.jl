@@ -301,8 +301,8 @@
     end
 
     # issue #216
-    @test DataStructures.isordered(OrderedDict{Int, String})
-    @test !DataStructures.isordered(Dict{Int, String})
+    @test OrderedCollections.isordered(OrderedDict{Int, String})
+    @test !OrderedCollections.isordered(Dict{Int, String})
 
     # Test merging
     let
@@ -336,7 +336,7 @@
         serialize(s, od)
         seek(s, 0)
         dd = deserialize(s)
-        @test isa(dd, DataStructures.OrderedDict{Char,Int64})
+        @test isa(dd, OrderedCollections.OrderedDict{Char,Int64})
         @test dd == od
         close(s)
     end
