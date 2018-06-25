@@ -1,12 +1,5 @@
 # OrderedDict
 
-import Base: haskey, get, get!, getkey, delete!, push!, pop!, empty!,
-             setindex!, getindex, length, isempty, start,
-             next, done, keys, values, setdiff, setdiff!,
-             union, union!, intersect, filter, filter!,
-             hash, eltype, ValueIterator, convert, copy,
-             merge
-
 """
     OrderedDict
 
@@ -74,7 +67,7 @@ function OrderedDict(kv)
     try
         dict_with_eltype(kv, eltype(kv))
     catch e
-        if any(x->isempty(methods(x, (typeof(kv),))), [start, next, done]) ||
+        if isempty(methods(iterate, (typeof(kv),))) ||
             !all(x->isa(x,Union{Tuple,Pair}),kv)
             throw(ArgumentError("Dict(kv): kv needs to be an iterator of tuples or pairs"))
         else
@@ -372,11 +365,7 @@ function get(default::Base.Callable, h::OrderedDict{K,V}, key) where {K,V}
 end
 
 haskey(h::OrderedDict, key) = (ht_keyindex(h, key, true) >= 0)
-if isdefined(Base, :KeySet) # 0.7.0-DEV.2722
-    in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedDict{K}} = (ht_keyindex(v.dict, key, true) >= 0)
-else
-    in(key, v::Base.KeyIterator{T}) where {T<:OrderedDict} = (ht_keyindex(v.dict, key, true) >= 0)
-end
+in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedDict{K}} = (ht_keyindex(v.dict, key, true) >= 0)
 
 function getkey(h::OrderedDict{K,V}, key, default) where {K,V}
     index = ht_keyindex(h, key, true)
@@ -422,19 +411,15 @@ function delete!(h::OrderedDict, key)
     h
 end
 
-function start(t::OrderedDict)
+function iterate(t::OrderedDict)
     t.ndel > 0 && rehash!(t)
-    1
+    length(t.keys) < 1 && return nothing
+    return (Pair(t.keys[1],t.vals[1]), 2)
 end
-done(t::OrderedDict, i::Int) = i > length(t.keys)
-next(t::OrderedDict, i::Int) = (Pair(t.keys[i],t.vals[i]), i+1)
-
-if isdefined(Base, :KeySet) # 0.7.0-DEV.2722
-    next(v::Base.KeySet{K,T}, i) where {K,T<:OrderedDict{K}} = (v.dict.keys[i], i+1)
-else
-    next(v::Base.KeyIterator{T}, i) where {T<:OrderedDict} = (v.dict.keys[i], i+1)
+function iterate(t::OrderedDict, i)
+    length(t.keys) < i && return nothing
+    return (Pair(t.keys[i],t.vals[i]), i+1)
 end
-next(v::ValueIterator{T}, i::Int) where {T<:OrderedDict} = (v.dict.vals[i], i+1)
 
 function merge(d::OrderedDict, others::AbstractDict...)
     K, V = keytype(d), valtype(d)

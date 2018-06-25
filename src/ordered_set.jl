@@ -17,7 +17,8 @@ OrderedSet(xs) = OrderedSet{eltype(xs)}(xs)
 
 show(io::IO, s::OrderedSet) = (show(io, typeof(s)); print(io, "("); !isempty(s) && Base.show_comma_array(io, s,'[',']'); print(io, ")"))
 
-@delegate OrderedSet.dict [isempty, length]
+isempty(s::OrderedSet) = isempty(s.dict)
+length(s::OrderedSet)  = length(s.dict)
 
 sizehint!(s::OrderedSet, sz::Integer) = (sizehint!(s.dict, sz); s)
 eltype(s::OrderedSet{T}) where {T} = T
@@ -31,8 +32,8 @@ delete!(s::OrderedSet, x) = (delete!(s.dict, x); s)
 
 getindex(x::OrderedSet,i::Int) = x.dict.keys[i]
 lastindex(x::OrderedSet) = lastindex(x.dict.keys)
-Base.nextind(::OrderedSet, i::Int) = i + 1  # Needed on 0.7 to mimic array indexing.
-Base.keys(s::OrderedSet) = 1:length(s)
+nextind(::OrderedSet, i::Int) = i + 1  # Needed on 0.7 to mimic array indexing.
+keys(s::OrderedSet) = 1:length(s)
 
 union!(s::OrderedSet, xs) = (for x in xs; push!(s,x); end; s)
 setdiff!(s::OrderedSet, xs) = (for x in xs; delete!(s,x); end; s)
@@ -43,10 +44,16 @@ copy(s::OrderedSet) = union!(similar(s), s)
 
 empty!(s::OrderedSet{T}) where {T} = (empty!(s.dict); s)
 
-start(s::OrderedSet)       = start(s.dict)
-done(s::OrderedSet, state::Int) = done(s.dict, state)
 # NOTE: manually optimized to take advantage of OrderedDict representation
-next(s::OrderedSet, i::Int)     = (s.dict.keys[i], i+1)
+function iterate(s::OrderedSet)
+    s.dict.ndel > 0 && rehash!(s.dict)
+    length(s.dict.keys) < 1 && return nothing
+    return (s.dict.keys[1], 2)
+end
+function iterate(s::OrderedSet, i)
+    length(s.dict.keys) < i && return nothing
+    return (s.dict.keys[i], i+1)
+end
 
 pop!(s::OrderedSet) = pop!(s.dict)[1]
 

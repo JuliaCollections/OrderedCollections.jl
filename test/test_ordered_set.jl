@@ -89,7 +89,7 @@
     @test isequal(empty!(s), OrderedSet())
     # TODO: rehash
 
-    # start, done, next
+    # iteration
     for data_in in ((7,8,4,5),
                     ("hello", 23, 2.7, (), [], (1,8)))
         s = OrderedSet(data_in)
@@ -138,11 +138,7 @@
     s = OrderedSet([1,3,5,7])
     @test findfirst(isequal(1), s) == 1
     @test findfirst(isequal(7), s) == 4
-    if VERSION >= v"0.7.0-DEV.3399"
-        @test findfirst(isequal(2), s) == nothing
-    else
-        @test findfirst(isequal(2), s) == 0    
-    end    
+    @test findfirst(isequal(2), s) == nothing
 
     # setdiff
     @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet()),        OrderedSet([1,2,3]))
@@ -201,12 +197,7 @@
     #       == is not properly defined for OrderedSets
     #@test symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])) == OrderedSet([1,3,5,6])
 
-    if VERSION >= v"0.7.0-DEV.3127"
-        # in Julia 0.7 symdiff always returns an array
-        @test isequal(symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])), [1,3,5,6])
-    else
-        @test isequal(symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])), OrderedSet([1,3,5,6]))
-    end
+    @test isequal(symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])), [1,3,5,6])
 
     # filter
     s = OrderedSet([1,2,3,4])

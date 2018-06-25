@@ -2,7 +2,7 @@ __precompile__()
 
 module OrderedCollections
 
-    import Base: <, <=, ==, length, isempty, start, next, done, delete!,
+    import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
                  show, dump, empty!, getindex, setindex!, get, get!,
                  in, haskey, keys, merge, copy, cat,
                  push!, pop!, insert!,
@@ -13,17 +13,16 @@ module OrderedCollections
                  merge, merge!, lt, Ordering, ForwardOrdering, Forward,
                  ReverseOrdering, Reverse, Lt,
                  isless,
-                 union, intersect, symdiff, setdiff, issubset,
-                 searchsortedfirst, searchsortedlast, in
+                 union, intersect, symdiff, setdiff, setdiff!, issubset,
+                 searchsortedfirst, searchsortedlast, in,
+                 filter, filter!, ValueIterator, eachindex, keytype,
+                 valtype, lastindex, nextind
+
 
     export OrderedDict, OrderedSet
-
-    import Base: eachindex, keytype, valtype
 
     include("dict_support.jl")
     include("ordered_dict.jl")
     include("ordered_set.jl")
-
-    # include("dict_sorting.jl")
 
 end

@@ -1,34 +1,12 @@
 using OrderedCollections
-using Compat
-using Compat.Test
-using Compat.Random
-using Compat.Serialization
-
-import OrderedCollections: IntSet
+using Test
+using Random, Serialization
 
 @test isempty(detect_ambiguities(Base, Core, OrderedCollections))
 
-using Primes
-
-tests = ["int_set",
-         "deque",
-         "circ_deque",
-         "sorted_containers",
-         "stack_and_queue",
-         "accumulator",
-         "classified_collections",
-         "disjoint_set",
-         "binheap",
-         "mutable_binheap",
-         "default_dict",
+tests = [
          "ordered_dict",
          "ordered_set",
-         "trie",
-         "list",
-         "multi_dict",
-         "circular_buffer",
-         "sorting",
-         "priority_queue"
         ]
 
 if length(ARGS) > 0
