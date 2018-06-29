@@ -6,9 +6,12 @@
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliacollections.github.io/OrderedCollections.jl/latest)
 
 OrderedCollections.jl
-=================
+=====================
 
-This package implements Ordered Dicts and Sets. It was split out from [DataStructures.jl](https://github.com/JuliaCollections/DataStructures.jl).
+This package implements OrderedDicts and OrderedSets, which are similar to containers in base Julia.
+However, during iteration the Ordered* containers return items in the order in which they were added to the collection.
+
+This package was split out from [DataStructures.jl](https://github.com/JuliaCollections/DataStructures.jl).
 
 Resources
 ---------
