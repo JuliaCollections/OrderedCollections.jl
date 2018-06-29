@@ -30,11 +30,6 @@ pop!(s::OrderedSet, x) = (pop!(s.dict, x); x)
 pop!(s::OrderedSet, x, deflt) = pop!(s.dict, x, deflt) == deflt ? deflt : x
 delete!(s::OrderedSet, x) = (delete!(s.dict, x); s)
 
-getindex(x::OrderedSet,i::Int) = x.dict.keys[i]
-lastindex(x::OrderedSet) = lastindex(x.dict.keys)
-nextind(::OrderedSet, i::Int) = i + 1  # Needed on 0.7 to mimic array indexing.
-keys(s::OrderedSet) = 1:length(s)
-
 union!(s::OrderedSet, xs) = (for x in xs; push!(s,x); end; s)
 setdiff!(s::OrderedSet, xs) = (for x in xs; delete!(s,x); end; s)
 setdiff!(s::Set, xs::OrderedSet) = (for x in xs; delete!(s,x); end; s)
@@ -110,4 +105,31 @@ function hash(s::OrderedSet, h::UInt)
     h = hash(orderedset_seed, h)
     s.dict.ndel > 0 && rehash!(s.dict)
     hash(s.dict.keys, h)
+end
+
+
+# Deprecated functionality, see
+# https://github.com/JuliaCollections/DataStructures.jl/pull/180#issuecomment-400269803
+
+function getindex(s::OrderedSet, i::Int)
+    Base.depwarn("indexing is deprecated for OrderedSet, please rewrite your code to use iteration", :getindex)
+    s.dict.ndel > 0 && rehash!(s.dict)
+    return s.dict.keys[i]
+end
+
+function lastindex(s::OrderedSet)
+    Base.depwarn("indexing is deprecated for OrderedSet, please rewrite your code to use iteration", :lastindex)
+    s.dict.ndel > 0 && rehash!(s.dict)
+    return lastindex(s.dict.keys)
+end
+
+function nextind(::OrderedSet, i::Int)
+    Base.depwarn("indexing is deprecated for OrderedSet, please rewrite your code to use iteration", :lastindex)
+    return i + 1  # Needed on 0.7 to mimic array indexing.
+end
+
+function keys(s::OrderedSet)
+    Base.depwarn("indexing is deprecated for OrderedSet, please rewrite your code to use iteration", :lastindex)
+    s.dict.ndel > 0 && rehash!(s.dict)
+    return 1:length(s)
 end
