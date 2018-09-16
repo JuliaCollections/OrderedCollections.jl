@@ -1,12 +1,10 @@
-__precompile__()
-
 module OrderedCollections
 
     import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
                  show, dump, empty!, getindex, setindex!, get, get!,
                  in, haskey, keys, merge, copy, cat,
                  push!, pop!, insert!,
-                 union!, delete!, similar, sizehint!,
+                 union!, delete!, empty, sizehint!,
                  isequal, hash,
                  map, reverse,
                  first, last, eltype, getkey, values, sum,
@@ -18,6 +16,7 @@ module OrderedCollections
                  filter, filter!, ValueIterator, eachindex, keytype,
                  valtype, lastindex, nextind
 
+    using InteractiveUtils: methodswith
 
     export OrderedDict, OrderedSet
 
@@ -25,4 +24,7 @@ module OrderedCollections
     include("ordered_dict.jl")
     include("ordered_set.jl")
 
+    import Base: similar
+    @deprecate similar(d::OrderedDict) empty(d)
+    @deprecate similar(s::OrderedSet) empty(s)
 end
