@@ -14,12 +14,10 @@ notifications:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 #  - julia -e 'Pkg.clone(pwd()); Pkg.build("OrderedCollections"); Pkg.test("OrderedCollections"; coverage=true)'
 after_success:
-  # push coverage results to Coveralls
-  - julia -e 'cd(Pkg.dir("OrderedCollections")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
-  - julia -e 'cd(Pkg.dir("OrderedCollections")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  - julia -e 'using Pkg, OrderedCollections; Pkg.add("Coverage"); using Coverage; cd(dirname(pathof(OrderedCollections))); Codecov.submit(Codecov.process_folder())'
 
   # Documenter auto-deploy
   # following `using` instruction is for triggering precompilation
-  - julia -e 'Pkg.add("Documenter")'
-  - julia -e 'cd(Pkg.dir("OrderedCollections", "docs")); include("make.jl")'
+  - julia -e 'using Pkg; Pkg.add("Documenter")'
+  - julia -e 'using Pkg, OrderedCollections; cd(joinpath(dirname(pathof(OrderedCollections)), "..", "docs")); include("make.jl")'
