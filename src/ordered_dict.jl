@@ -80,7 +80,7 @@ dict_with_eltype(kv, ::Type{Tuple{K,V}}) where {K,V} = OrderedDict{K,V}(kv)
 dict_with_eltype(kv, ::Type{Pair{K,V}}) where {K,V} = OrderedDict{K,V}(kv)
 dict_with_eltype(kv, t) = OrderedDict{Any,Any}(kv)
 
-similar(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
+empty(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
 
 length(d::OrderedDict) = length(d.keys) - d.ndel
 isempty(d::OrderedDict) = (length(d)==0)
@@ -133,7 +133,7 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
 
     if h.ndel > 0
         ndel0 = h.ndel
-        ptrs = !isbits(K)
+        ptrs = !isbitstype(K)
         to = 1
         # TODO: to get the best performance we need to avoid reallocating these.
         # This algorithm actually works in place, unless the dict is modified
