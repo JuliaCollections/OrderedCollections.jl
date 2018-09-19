@@ -21,6 +21,7 @@ module OrderedCollections
     include("dict_support.jl")
     include("ordered_dict.jl")
     include("ordered_set.jl")
+    include("dict_sorting.jl")
 
     import Base: similar
     @deprecate similar(d::OrderedDict) empty(d)
