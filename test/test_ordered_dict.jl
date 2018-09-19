@@ -373,4 +373,15 @@ using OrderedCollections, Test
         @test filter(p->first(p) > 1, OrderedDict(1=>2, 3=>4)) isa OrderedDict
     end
 
-end # @teestset OrderedDict
+    @testset "Sorting" begin
+        d = Dict(i=>Char(123-i) for i = 1:10)
+        @test collect(keys(d)) != 1:10
+        sd = sort(d)
+        @test collect(keys(sd)) == 1:10
+        @test collect(values(sd)) == collect('z':-1:'q')
+        sdv = sort(d; byvalue=true)
+        @test collect(keys(sdv)) == 10:-1:1
+        @test collect(values(sdv)) == collect('q':'z')
+    end
+
+end # @testset OrderedDict
