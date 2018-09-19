@@ -143,7 +143,9 @@ using OrderedCollections, Test
     @testset "setdiff" begin
         @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet()),        OrderedSet([1,2,3]))
         @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet([1])),     OrderedSet([2,3]))
+        @test isequal(setdiff(OrderedSet([1,2,3]), Set([1])),            OrderedSet([2,3]))
         @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet([1,2])),   OrderedSet([3]))
+        @test isequal(setdiff(OrderedSet([1,2,3]), Set([1,2])),          OrderedSet([3]))
         @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet([1,2,3])), OrderedSet())
         @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet([4])),     OrderedSet([1,2,3]))
         @test isequal(setdiff(OrderedSet([1,2,3]), OrderedSet([4,1])),   OrderedSet([2,3]))
