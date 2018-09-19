@@ -3,12 +3,20 @@ using OrderedCollections, Test
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
-        @test isa(OrderedDict(), OrderedDict{Any,Any})
-        @test isa(OrderedDict([(1,2.0)]), OrderedDict{Int,Float64})
-        @test isa(OrderedDict([("a",1),("b",2)]), OrderedDict{String,Int})
-        @test isa(OrderedDict(Pair(1, 1.0)), OrderedDict{Int,Float64})
-        @test isa(OrderedDict(Pair(1, 1.0), Pair(2, 2.0)), OrderedDict{Int,Float64})
-        @test isa(OrderedDict(Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0)), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
+        @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict([("a",1),("b",2)])), OrderedDict{String,Int})
+        @test isa(@inferred(OrderedDict(Pair(1, 1.0))), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict(Pair(1, 1.0), Pair(2, 2.0))), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict{Int,Float64}(Pair(1, 1), Pair(2, 2))), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict(Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0))), OrderedDict{Int,Float64})
+        @test OrderedDict(()) == OrderedDict{Any,Any}()
+        @test isa(@inferred(OrderedDict([Pair(1, 1.0), Pair(2, 2.0)])), OrderedDict{Int,Float64})
+        @test_throws ArgumentError OrderedDict([1,2,3,4])
+        iter = Iterators.filter(x->x.first>1, [Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0)])
+        @test @inferred(OrderedDict(iter)) == OrderedDict{Int,Float64}(2=>2.0, 3=>3.0)
+        iter = Iterators.drop(1:10, 1)
+        @test_throws ArgumentError OrderedDict(iter)
     end
 
     @testset "empty dictionary" begin
@@ -32,6 +40,8 @@ using OrderedCollections, Test
         @test 'a' in keys(d)
         @test haskey(d, 'a')
         @test get(d, 'B', 0) == 0
+        @test getkey(d, 'b', nothing) == 'b'
+        @test getkey(d, 'B', nothing) == nothing
         @test !('B' in keys(d))
         @test !haskey(d, 'B')
         @test pop!(d, 'a') == 2
@@ -39,6 +49,17 @@ using OrderedCollections, Test
         @test collect(keys(d)) == collect('b':'z')
         @test collect(values(d)) == collect(2:26)
         @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'z', 2:26)]
+    end
+
+    @testset "convert" begin
+        d = OrderedDict{Int,Float32}(i=>Float32(i) for i = 1:10)
+        @test convert(OrderedDict{Int,Float32}, d) === d
+        dc = convert(OrderedDict{Int,Float64}, d)
+        @test dc !== d
+        @test keytype(dc) == Int
+        @test valtype(dc) == Float64
+        @test keys(dc) == keys(d)
+        @test collect(values(dc)) == collect(values(d))
     end
 
     @testset "Issue #60" begin
@@ -379,6 +400,7 @@ using OrderedCollections, Test
         sd = sort(d)
         @test collect(keys(sd)) == 1:10
         @test collect(values(sd)) == collect('z':-1:'q')
+        @test sort(sd) == sd
         sdv = sort(d; byvalue=true)
         @test collect(keys(sdv)) == 10:-1:1
         @test collect(values(sdv)) == collect('q':'z')
