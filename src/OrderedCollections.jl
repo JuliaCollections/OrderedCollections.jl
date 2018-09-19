@@ -16,8 +16,6 @@ module OrderedCollections
                  filter, filter!, ValueIterator, eachindex, keytype,
                  valtype, lastindex, nextind
 
-    using InteractiveUtils: methodswith
-
     export OrderedDict, OrderedSet
 
     include("dict_support.jl")
