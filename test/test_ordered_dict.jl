@@ -406,4 +406,9 @@ using OrderedCollections, Test
         @test collect(values(sdv)) == collect('q':'z')
     end
 
+    @testset "Test that OrderedDict merge with combiner returns type OrderedDict" begin
+        @test merge(+, OrderedDict(:a=>1, :b=>2), OrderedDict(:b=>7, :c=>4)) == OrderedDict(:a=>1, :b=>9, :c=>4)
+        @test merge(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
+    end
+
 end # @testset OrderedDict
