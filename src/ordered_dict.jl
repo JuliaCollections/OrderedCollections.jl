@@ -429,3 +429,12 @@ function merge(d::OrderedDict, others::AbstractDict...)
     end
     merge!(OrderedDict{K,V}(), d, others...)
 end
+
+function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
+    K, V = keytype(d), valtype(d)
+    for other in others
+        K = promote_type(K, keytype(other))
+        V = promote_type(V, valtype(other))
+    end
+    merge!(combine, OrderedDict{K,V}(), d, others...)
+end
