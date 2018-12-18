@@ -1,32 +1,35 @@
-# OrderedDicts and OrderedSets
+# OrderedSets
 
-`OrderedDicts` are simply dictionaries whose entries have a particular
-order. For `OrderedDicts` (and `OrderedSets`), order refers to
-*insertion order*, which allows deterministic iteration over the
-dictionary or set:
+`OrderedSets` are sets whose entries have a particular order. 
+Order refers to *insertion order*, which allows deterministic 
+iteration over the set:
 
 ```julia
-d = OrderedDict{Char,Int}()
-for c in 'a':'e'
-    d[c] = c-'a'+1
+using Base.MathConstants
+s = OrderedSet((π,e,γ,catalan,φ))
+for x in s
+   println(x)
 end
-collect(d) # => [('a',1),('b',2),('c',3),('d',4),('e',5)]
-
-s = OrderedSet(π,e,γ,catalan,φ)
-collect(s) # => [π = 3.1415926535897...,
-           #     e = 2.7182818284590...,
-           #     γ = 0.5772156649015...,
-           #     catalan = 0.9159655941772...,
-           #     φ = 1.6180339887498...]
+#> π = 3.1415926535897...
+#> ℯ = 2.7182818284590...
+#> γ = 0.5772156649015...
+#> catalan = 0.9159655941772...
+#> φ = 1.6180339887498...
 ```
+All `Set` operations are available for OrderedSets.
 
-All standard `Associative` and `Dict` functions are available for
-`OrderedDicts`, and all `Set` operations are available for OrderedSets.
-
-Note that to create an OrderedSet of a particular type, you must specify
-the type in curly-braces:
+Note that to create an OrderedSet of a particular type, you must 
+specify the type in curly-braces:
 
 ```julia
 # create an OrderedSet of Strings
 strs = OrderedSet{AbstractString}()
 ```
+# OrderedDicts 
+`OrderedDict` are simply dictionaries whose entries have a particular
+order. 
+
+The insertion order is conserved when iterating on the dictionary itself,
+its keys (through `keys(d)`), or its values (through `values(d)`)
+
+All standard `Associative` and `Dict` functions are available for `OrderedDicts`
