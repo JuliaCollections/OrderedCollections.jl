@@ -26,10 +26,21 @@ specify the type in curly-braces:
 strs = OrderedSet{AbstractString}()
 ```
 # OrderedDicts 
-`OrderedDict` are simply dictionaries whose entries have a particular
+Similarly, `OrderedDict` are simply dictionaries whose entries have a particular
 order. 
-
+```julia
+d = OrderedDict{Char,Int}()	
+for c in 'a':'d'
+    d[c] = c-'a'+1
+end
+for x in d
+   println(x)
+end
+#> 'a' => 1
+#> 'b' => 2
+#> 'c' => 3
+#> 'd' => 4
+``` 
 The insertion order is conserved when iterating on the dictionary itself,
-its keys (through `keys(d)`), or its values (through `values(d)`)
-
+its keys (through `keys(d)`), or its values (through `values(d)`).
 All standard `Associative` and `Dict` functions are available for `OrderedDicts`
