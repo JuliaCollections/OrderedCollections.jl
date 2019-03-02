@@ -14,7 +14,8 @@ module OrderedCollections
                  union, intersect, symdiff, setdiff, setdiff!, issubset,
                  searchsortedfirst, searchsortedlast, in,
                  filter, filter!, ValueIterator, eachindex, keytype,
-                 valtype, lastindex, nextind
+                 valtype, lastindex, nextind,
+                 copymutable, emptymutable
 
     export OrderedDict, OrderedSet
 
