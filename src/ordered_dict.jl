@@ -69,7 +69,7 @@ function OrderedDict(kv)
     catch e
         if isempty(methods(iterate, (typeof(kv),))) ||
             !all(x->isa(x,Union{Tuple,Pair}),kv)
-            throw(ArgumentError("Dict(kv): kv needs to be an iterator of tuples or pairs"))
+            throw(ArgumentError("OrderedDict(kv): kv needs to be an iterator of tuples or pairs"))
         else
             rethrow(e)
         end
