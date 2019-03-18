@@ -192,21 +192,13 @@ using OrderedCollections, Test
         end
         @test ⊆(OrderedSet([1]), OrderedSet([1,2]))
 
-        ## TODO: not implemented for OrderedSets
-        #@test ⊊(OrderedSet([1]), OrderedSet([1,2]))
-        #@test !⊊(OrderedSet([1]), OrderedSet([1]))
-        #@test ⊈(OrderedSet([1]), OrderedSet([2]))
+        @test ⊊(OrderedSet([1]), OrderedSet([1,2]))
+        @test !⊊(OrderedSet([1]), OrderedSet([1]))
+        @test ⊈(OrderedSet([1]), OrderedSet([2]))
 
-        # TODO: returns false!
-        #       == is not properly defined for OrderedSets
-        #@test symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])) == OrderedSet([1,3,5,6])
+        @test symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])) == OrderedSet([1,3,5,6])
 
-        if VERSION >= v"0.7.0-DEV.3127"
-            # in Julia 0.7 symdiff always returns an array
-            @test isequal(symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])), [1,3,5,6])
-        else
-            @test isequal(symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])), OrderedSet([1,3,5,6]))
-        end
+        @test isequal(symdiff(OrderedSet([1,2,3,4]), OrderedSet([2,4,5,6])), OrderedSet([1,3,5,6]))
 
     end
 

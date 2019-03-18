@@ -2,10 +2,8 @@
 
 # This was largely copied and modified from Base
 
-# TODO: Most of these functions should be removed once AbstractSet is introduced there
-# (see https://github.com/JuliaLang/julia/issues/5533)
 
-struct OrderedSet{T}
+struct OrderedSet{T}  <: AbstractSet{T}
     dict::OrderedDict{T,Nothing}
 
     OrderedSet{T}() where {T} = new{T}(OrderedDict{T,Nothing}())
@@ -15,7 +13,7 @@ OrderedSet() = OrderedSet{Any}()
 OrderedSet(xs) = OrderedSet{eltype(xs)}(xs)
 
 
-show(io::IO, s::OrderedSet) = (show(io, typeof(s)); print(io, "("); !isempty(s) && Base.show_comma_array(io, s,'[',']'); print(io, ")"))
+show(io::IO, s::OrderedSet) = (show(io, typeof(s)); print(io, "("); !isempty(s) && Base.show_vector(io, s,'[',']'); print(io, ")"))
 
 isempty(s::OrderedSet) = isempty(s.dict)
 length(s::OrderedSet)  = length(s.dict)
@@ -30,14 +28,13 @@ pop!(s::OrderedSet, x) = (pop!(s.dict, x); x)
 pop!(s::OrderedSet, x, deflt) = pop!(s.dict, x, deflt) == deflt ? deflt : x
 delete!(s::OrderedSet, x) = (delete!(s.dict, x); s)
 
-union!(s::OrderedSet, xs) = (for x in xs; push!(s,x); end; s)
-setdiff!(s::OrderedSet, xs) = (for x in xs; delete!(s,x); end; s)
-setdiff!(s::Set, xs::OrderedSet) = (for x in xs; delete!(s,x); end; s)
-
 empty(s::OrderedSet{T}) where {T} = OrderedSet{T}()
 copy(s::OrderedSet) = union!(empty(s), s)
 
 empty!(s::OrderedSet{T}) where {T} = (empty!(s.dict); s)
+
+emptymutable(s::OrderedSet{T}, ::Type{U}=T) where {T,U} = OrderedSet{U}()
+copymutable(s::OrderedSet) = copy(s)
 
 # NOTE: manually optimized to take advantage of OrderedDict representation
 function iterate(s::OrderedSet)
@@ -52,39 +49,7 @@ end
 
 pop!(s::OrderedSet) = pop!(s.dict)[1]
 
-union(s::OrderedSet) = copy(s)
-function union(s::OrderedSet, sets...)
-    u = OrderedSet{Base.promote_eltype(s, sets...)}()
-    union!(u,s)
-    for t in sets
-        union!(u,t)
-    end
-    return u
-end
 
-intersect(s::OrderedSet) = copy(s)
-function intersect(s::OrderedSet, sets...)
-    i = copy(s)
-    for x in s
-        for t in sets
-            if !in(x,t)
-                delete!(i,x)
-                break
-            end
-        end
-    end
-    return i
-end
-
-function setdiff(a::OrderedSet, b)
-    d = empty(a)
-    for x in a
-        if !(x in b)
-            push!(d, x)
-        end
-    end
-    d
-end
 
 ==(l::OrderedSet, r::OrderedSet) = (length(l) == length(r)) && (l <= r)
 <(l::OrderedSet, r::OrderedSet) = (length(l) < length(r)) && (l <= r)
@@ -98,7 +63,6 @@ function filter!(f::Function, s::OrderedSet)
     end
     return s
 end
-filter(f::Function, s::OrderedSet) = filter!(f, copy(s))
 
 const orderedset_seed = UInt === UInt64 ? 0x2114638a942a91a5 : 0xd86bdbf1
 function hash(s::OrderedSet, h::UInt)
