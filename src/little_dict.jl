@@ -63,8 +63,33 @@ kvtype(::Type{Union{}}) = (Any,Any)
 kvtype(::Type{<:Pair{K,V}}) where {K,V} = (K,V)
 kvtype(::Type{<:Tuple{K,V}}) where {K,V} = (K,V)
 
-Base.length(dd::LittleDict) = length(dd.keys)
 Base.sizehint!(dd::LittleDict) = (sizehint!(dd.ks); sizehint!(dd.vs))
+
+"""
+    freeze(dd::AbstractDict)
+Render an dictionary immutable by converting it to a `Tuple` backed
+`LittleDict`.
+This will make it faster if it is small enough.
+In particular the `Tuple` backed `LittleDict` is faster than the
+`Vector` backed `LittleDict`.
+"""
+function freeze(dd::AbstractDict)
+    ks = Tuple(keys(dd))
+    vs = Tuple(values(dd))
+    return LittleDict(ks, vs)
+end
+
+##### Methods that all AbstractDicts should implement
+
+Base.length(dd::LittleDict) = length(dd.keys)
+
+function Base.getkey(dd::LittleDict, key, default)
+    if key ∈ dd.keys
+        return key
+    else
+        return default
+    end
+end
 
 function Base.get(dd::LittleDict, key, default)
     @assert length(dd.keys) == length(dd.vals)
@@ -74,6 +99,14 @@ function Base.get(dd::LittleDict, key, default)
     end
     return default
 end
+
+function Base.iterate(dd::LittleDict, ii=1)
+    ii > length(dd.keys) && return nothing
+    return (dd.keys[ii] => dd.vals[ii], ii+1)
+end
+
+
+######## Methods that all mutable AbstractDict's should implement
 
 function Base.setindex!(dd::LittleDict, value, key)
     @assert length(dd.keys) == length(dd.vals)
@@ -87,21 +120,30 @@ function Base.setindex!(dd::LittleDict, value, key)
     return value
 end
 
-function Base.iterate(dd::LittleDict, ii=1)
-    ii > length(dd.keys) && return nothing
-    return (dd.keys[ii] => dd.vals[ii], ii+1)
+function Base.pop!(dd::LittleDict)
+    pop!(dd.keys)
+    return pop!(dd.vals)
 end
 
-"""
-    freeze(dd::AbstractDict)
-Render an dictionary immutable by converting it to a `Tuple` backed
-`LittleDict`.
-This will make it faster if it is small enough.
-In particular the `Tuple` backed `LittleDict` is faster than the 
-`Vector` backed `LittleDict`.
-"""
-function freeze(dd::AbstractDict)
-    ks = Tuple(keys(dd))
-    vs = Tuple(values(dd))
-    return LittleDict(ks, vs)
+function Base.pop!(dd::LittleDict, key)
+    @assert length(dd.keys) == length(dd.vals)
+    
+    @simd for ii in 1:length(dd.keys)
+        cand = @inbounds dd.keys[ii]
+        if isequal(cand, key)
+            deleteat!(dd.keys, ii)
+            val = @inbounds dd.vals[ii]
+            deleteat!(dd.vals, ii)
+            return val
+        end
+    end
+    # Not found, throw error
+    throw(KeyError(key))
 end
+
+function Base.delete!(dd::LittleDict, key)
+    pop!(dd, key)
+    return dd
+end
+
+Base.empty!(dd::LittleDict) = (empty!(dd.keys); empty!(dd.vals); dd)

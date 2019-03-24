@@ -1,33 +1,31 @@
 using OrderedCollections, Test
 
 @testset "LittleDict" begin
-@testset "Constructors" begin
-    @test isa(@inferred(LittleDict()), LittleDict{Any,Any})
-    @test isa(@inferred(LittleDict([(1,2.0)])), LittleDict{Int,Float64})
+    @testset "Constructors" begin
+        @test isa(@inferred(LittleDict()), LittleDict{Any,Any})
+        @test isa(@inferred(LittleDict([(1,2.0)])), LittleDict{Int,Float64})
 
-    @test isa(@inferred(LittleDict([("a",1),("b",2)])), LittleDict{String,Int})
-    @test isa(@inferred(LittleDict(Pair(1, 1.0))), LittleDict{Int,Float64})
-    @test isa(@inferred(LittleDict(Pair(1, 1.0), Pair(2, 2.0))), 
-    LittleDict{Int,Float64})
-
-    @test isa(@inferred(LittleDict{Int,Float64}(2=>2.0, 3=>3.0)), 
+        @test isa(@inferred(LittleDict([("a",1),("b",2)])), LittleDict{String,Int})
+        @test isa(@inferred(LittleDict(Pair(1, 1.0))), LittleDict{Int,Float64})
+        @test isa(@inferred(LittleDict(Pair(1, 1.0), Pair(2, 2.0))),
         LittleDict{Int,Float64})
-    @test isa(@inferred(LittleDict{Int,Float64}(Pair(1, 1), Pair(2, 2))), LittleDict{Int,Float64})
-    @test isa(@inferred(LittleDict(Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0))), LittleDict{Int,Float64})
-    @test LittleDict(()) == LittleDict{Any,Any}()
 
-    @test isa(@inferred(LittleDict([Pair(1, 1.0), Pair(2, 2.0)])), LittleDict{Int,Float64})
-    @test_throws ArgumentError LittleDict([1,2,3,4])
+        @test isa(@inferred(LittleDict{Int,Float64}(2=>2.0, 3=>3.0)),
+            LittleDict{Int,Float64})
+        @test isa(@inferred(LittleDict{Int,Float64}(Pair(1, 1), Pair(2, 2))), LittleDict{Int,Float64})
+        @test isa(@inferred(LittleDict(Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0))), LittleDict{Int,Float64})
+        @test LittleDict(()) == LittleDict{Any,Any}()
 
-    iter = Iterators.filter(x->x.first>1, [Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0)])
-    @test @inferred(LittleDict(iter)) == LittleDict{Int,Float64}(2=>2.0, 3=>3.0)
+        @test isa(@inferred(LittleDict([Pair(1, 1.0), Pair(2, 2.0)])), LittleDict{Int,Float64})
+        @test_throws ArgumentError LittleDict([1,2,3,4])
+
+        iter = Iterators.filter(x->x.first>1, [Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0)])
+        @test @inferred(LittleDict(iter)) == LittleDict{Int,Float64}(2=>2.0, 3=>3.0)
+        
+        iter = Iterators.drop(1:10, 1)
+        @test_throws ArgumentError LittleDict(iter)
+    end
     
-    iter = Iterators.drop(1:10, 1)
-    @test_throws ArgumentError LittleDict(iter)
-end
-    
-
-
     @testset "empty dictionary" begin
         d = LittleDict{Char, Int}()
         @test length(d) == 0
@@ -60,6 +58,7 @@ end
         @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'z', 2:26)]
     end
 
+    exit()
     @testset "convert" begin
         d = LittleDict{Int,Float32}(i=>Float32(i) for i = 1:10)
         @test convert(LittleDict{Int,Float32}, d) === d
