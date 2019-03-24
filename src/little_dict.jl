@@ -25,9 +25,12 @@ struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
     vals::VS
 end
 
-function LittleDict(ks::KS, vs::VS) where {KS,VS}
+function LittleDict(ks::KS, vs::VS) where {KS<:StoreType,VS<:StoreType}
     return LittleDict{eltype(KS), eltype(VS), KS, VS}(ks, vs)
 end
+
+# Other iterators should be copyed to a Vector
+LittleDict(ks, vs) = LittleDict(collect(ks), collect(vs))
 
 
 function LittleDict{K,V}(itr) where {K,V}
@@ -70,9 +73,8 @@ kvtype(::Type{Tuple{K,<:Any}}) where {K} = (K,Any)
     freeze(dd::AbstractDict)
 Render an dictionary immutable by converting it to a `Tuple` backed
 `LittleDict`.
-This will make it faster if it is small enough.
-In particular the `Tuple` backed `LittleDict` is faster than the
-`Vector` backed `LittleDict`.
+The `Tuple` backed `LittleDict` is faster than the `Vector` backed `LittleDict`,
+particularly when the keys are all concretely typed.
 """
 function freeze(dd::AbstractDict)
     ks = Tuple(keys(dd))

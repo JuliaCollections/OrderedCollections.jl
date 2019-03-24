@@ -24,6 +24,11 @@ using OrderedCollections, Test
         
         iter = Iterators.drop(1:10, 1)
         @test_throws ArgumentError LittleDict(iter)
+
+        k_iter = Iterators.filter(x->x>1, [1,2,3,4])
+        v_iter = Iterators.filter(x->x>1, [1.0,2.0,3.0,4.0])
+        @test @inferred(LittleDict(k_iter, v_iter)) isa LittleDict{Int,Float64, Vector{Int}, Vector{Float64}}
+
     end
     
     @testset "empty dictionary" begin
