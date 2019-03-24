@@ -46,24 +46,25 @@ function LittleDict{K,V}(itr) where {K,V}
     return LittleDict(ks, vs)
 end
 
-#LittleDict{K,V}() where {K,V} = LittleDict{K,V}(tuple())
-LittleDict() = LittleDict{Any, Any}()
+#LittleDict() = LittleDict{Any, Any}()
 LittleDict{K,V}(itr...) where {K,V} = LittleDict{K,V}(itr)
+LittleDict(itr...) = LittleDict(itr)
 LittleDict(itr::T) where T = LittleDict{kvtype(eltype(T))...}(itr)
 
-
-LittleDict(kv::Pair) = LittleDict([first(kv)], [last(kv)])
-function LittleDict(itr1::Pair{K,V}, itrs::Pair{K,V}...) where {K,V}
-    return LittleDict{K,V}(itr1, itrs...)
-end
-#LittleDict(itr1::Pair, itr2::Pair, itrs::Pair...) = LittleDict(itr1, itr2, itrs...)
+# Avoid contention between the core constructor, and the list of elements
+LittleDict(itr1::Pair, itr2::Pair) = LittleDict(first.([itr1, itr2]), last.([itr1,itr2]))
+LittleDict(itr1::Pair) = LittleDict([first(itr1)], [last(itr1)])
 
 kvtype(::Any) = (Any, Any)
 kvtype(::Type{Union{}}) = (Any,Any)
-kvtype(::Type{<:Pair{K,V}}) where {K,V} = (K,V)
-kvtype(::Type{<:Tuple{K,V}}) where {K,V} = (K,V)
 
-Base.sizehint!(dd::LittleDict) = (sizehint!(dd.ks); sizehint!(dd.vs))
+kvtype(::Type{Pair{K,V}}) where {K,V} = (K,V)
+kvtype(::Type{Pair{<:Any,V}}) where {V} = (Any,V)
+kvtype(::Type{Pair{K,<:Any}}) where {K} = (K,Any)
+
+kvtype(::Type{Tuple{K,V}}) where {K,V} = (K,V)
+kvtype(::Type{Tuple{<:Any,V}}) where {V} = (Any,V)
+kvtype(::Type{Tuple{K,<:Any}}) where {K} = (K,Any)
 
 """
     freeze(dd::AbstractDict)
@@ -107,6 +108,8 @@ end
 
 
 ######## Methods that all mutable AbstractDict's should implement
+
+Base.sizehint!(dd::LittleDict) = (sizehint!(dd.ks); sizehint!(dd.vs); dd)
 
 function Base.setindex!(dd::LittleDict, value, key)
     @assert length(dd.keys) == length(dd.vals)

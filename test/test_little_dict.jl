@@ -58,7 +58,6 @@ using OrderedCollections, Test
         @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'z', 2:26)]
     end
 
-    exit()
     @testset "convert" begin
         d = LittleDict{Int,Float32}(i=>Float32(i) for i = 1:10)
         @test convert(LittleDict{Int,Float32}, d) === d
@@ -100,7 +99,7 @@ using OrderedCollections, Test
             h[i] = i+1
         end
 
-        @test collect(h) == [Pair(x,y) for (x,y) in zip(1:100, 2:10001)]
+        @test collect(h) == [Pair(x,y) for (x,y) in zip(1:100, 2:101)]
 
         for i=1:2:100
             delete!(h, i)
@@ -120,24 +119,27 @@ using OrderedCollections, Test
 
         h[77] = 100
         @test h[77]==100
+        @test length(h) == 1
 
         for i=1:100
             h[i] = i+1
         end
+        @test length(h) == 100
 
-        for i=1:2:100
+        for i=1:2:50
             delete!(h, i)
         end
+        @test length(h) == 75
 
-        for i=101:200
+        for i=51:100
             h[i] = i+1
         end
+        @test length(h) == 75
 
         for i=2:2:100
             @test h[i]==i+1
         end
-
-        for i=10:200
+        for i=75:100
             @test h[i]==i+1
         end
     end
@@ -150,7 +152,7 @@ using OrderedCollections, Test
         h["a","b","c"] = 4
         @test h["a","b","c"] == h[("a","b","c")] == 4
     end
-
+    
     @testset "KeyError" begin
         z = LittleDict()
         get_KeyError = false
@@ -183,7 +185,7 @@ using OrderedCollections, Test
         @test isa(d3, LittleDict{Int,Int})
         @test isa(d4, LittleDict{Int,Int})
     end
-
+    
     @testset "from tuple/vector/pairs/tuple of pair 2" begin
         d = LittleDict(((1, 2), (3, "b")))
         d2 = LittleDict([(1, 2), (3, "b")])
@@ -193,10 +195,8 @@ using OrderedCollections, Test
         @test d2[1] === 2
         @test d2[3] == "b"
 
-        ## TODO: tuple of tuples doesn't work for mixed tuple types
-        # @test d == d2 == d3 == d4
-        # @test isa(d, LittleDict{Int,Any})
-        @test d2 == d3 == d4
+        @test d == d2 == d3 == d4
+        @test isa(d, LittleDict{Int,Any})
         @test isa(d2, LittleDict{Int,Any})
         @test isa(d3, LittleDict{Int,Any})
         @test isa(d4, LittleDict{Int,Any})
@@ -271,6 +271,7 @@ using OrderedCollections, Test
         @test !isequal(LittleDict([(1, 2)]), LittleDict([("dog", "bone")]))
         @test isequal(LittleDict{Int,Int}(), LittleDict{AbstractString,AbstractString}())
     end
+
 
     @testset "data_in" begin
         # Generate some data to populate dicts to be compared
