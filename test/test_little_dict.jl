@@ -430,3 +430,37 @@ using OrderedCollections, Test
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
 end # @testset LittleDict
+
+
+@testset "Frozen LittleDict" begin
+
+    @testset "types" begin
+        base_dict = LittleDict((10,20,30),("a", "b", "c"))
+        @test base_dict isa LittleDict{Int, String, <:Tuple, <:Tuple}
+        
+        nonfrozen = LittleDict(10=>"a", 20=>"b", 30=>"c")
+        @test nonfrozen isa LittleDict{Int, String, <:Vector, <:Vector}
+        
+        @test base_dict == nonfrozen
+
+        frozen = freeze(nonfrozen)
+        @test frozen == base_dict
+        @test frozen isa LittleDict{Int, String, <:Tuple, <:Tuple}
+    end
+
+    @testset "get" begin
+        fd = LittleDict((10,20,30),("a", "b", "c"))
+        @test fd[10] == "a"
+        @test fd[20] == "b"
+        @test fd[30] == "c"
+        @test_throws KeyError fd[-1]
+    end
+
+    @testset "set" begin
+        fd = LittleDict((10,20,30),("a", "b", "c"))
+        @test_throws MethodError fd[10] = "ab"
+        @test_throws MethodError fd[20] = "bb"
+        @test_throws MethodError fd[30] = "cc"
+        @test_throws MethodError fd[-1] = "dd"
+    end
+end
