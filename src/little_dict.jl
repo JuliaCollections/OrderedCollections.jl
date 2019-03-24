@@ -1,3 +1,5 @@
+const StoreType = Union{<:Tuple, <:Vector}
+
 """
     LittleDict(keys, vals)<:AbstractDict
 
@@ -18,7 +20,7 @@ or with up to around 50 elements if using a `LittleDict` backed by `Tuples`
 However, this depends on exactly how long `isequal` and `hash` take,
 as well as on how many hash collisions occur etc.
 """
-struct LittleDict{K,V,KS,VS} <: AbstractDict{K, V}
+struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
     keys::KS
     vals::VS
 end
@@ -31,32 +33,46 @@ end
 function LittleDict{K,V}(itr) where {K,V}
     ks = K[]
     vs = V[]
-    for (k, v) in itr
+    for val in itr
+        if !(val isa Union{Tuple{<:Any, <:Any}, Pair})
+            throw(ArgumentError(
+                "LittleDict(kv): kv needs to be an iterator of tuples or pairs")
+            )
+        end
+        k, v = val
         push!(ks, k)
         push!(vs, v)
     end
     return LittleDict(ks, vs)
 end
 
-LittleDict{K,V}() where {K,V} = LittleDict{K,V}(tuple())
+#LittleDict{K,V}() where {K,V} = LittleDict{K,V}(tuple())
 LittleDict() = LittleDict{Any, Any}()
+LittleDict{K,V}(itr...) where {K,V} = LittleDict{K,V}(itr)
 LittleDict(itr::T) where T = LittleDict{kvtype(eltype(T))...}(itr)
 
+
+LittleDict(kv::Pair) = LittleDict([first(kv)], [last(kv)])
+function LittleDict(itr1::Pair{K,V}, itrs::Pair{K,V}...) where {K,V}
+    return LittleDict{K,V}(itr1, itrs...)
+end
+#LittleDict(itr1::Pair, itr2::Pair, itrs::Pair...) = LittleDict(itr1, itr2, itrs...)
+
 kvtype(::Any) = (Any, Any)
+kvtype(::Type{Union{}}) = (Any,Any)
 kvtype(::Type{<:Pair{K,V}}) where {K,V} = (K,V)
 kvtype(::Type{<:Tuple{K,V}}) where {K,V} = (K,V)
-
 
 Base.length(dd::LittleDict) = length(dd.keys)
 Base.sizehint!(dd::LittleDict) = (sizehint!(dd.ks); sizehint!(dd.vs))
 
-function Base.getindex(dd::LittleDict, key)
+function Base.get(dd::LittleDict, key, default)
     @assert length(dd.keys) == length(dd.vals)
     @simd for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
         isequal(cand, key) && return @inbounds(dd.vals[ii])
     end
-    throw(KeyError(key))
+    return default
 end
 
 function Base.setindex!(dd::LittleDict, value, key)
@@ -71,8 +87,10 @@ function Base.setindex!(dd::LittleDict, value, key)
     return value
 end
 
-Base.iterate(dd::LittleDict, args...) = iterate(zip(dd.keys, dd.vals), args...)
-
+function Base.iterate(dd::LittleDict, ii=1)
+    ii > length(dd.keys) && return nothing
+    return (dd.keys[ii] => dd.vals[ii], ii+1)
+end
 
 """
     freeze(dd::AbstractDict)
