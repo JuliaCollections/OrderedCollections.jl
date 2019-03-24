@@ -92,6 +92,7 @@ function Base.getkey(dd::LittleDict, key, default)
     end
 end
 
+struct NotFoundSentinel end  # Struct to mark not not found
 function Base.get(dd::LittleDict, key, default)
     @assert length(dd.keys) == length(dd.vals)
     @simd for ii in 1:length(dd.keys)
@@ -99,6 +100,14 @@ function Base.get(dd::LittleDict, key, default)
         isequal(cand, key) && return @inbounds(dd.vals[ii])
     end
     return default
+end
+function get(default::Base.Callable, dd::LittleDict, key)
+    got = get(dd, key, NotFoundSentinel())
+    if got isa NotFoundSentinel  # not found
+        return default()
+    else
+        return got
+    end
 end
 
 function Base.iterate(dd::LittleDict, ii=1)
@@ -109,14 +118,13 @@ end
 
 ######## Methods that all mutable AbstractDict's should implement
 
-Base.sizehint!(dd::LittleDict) = (sizehint!(dd.ks); sizehint!(dd.vs); dd)
+function Base.sizehint!(dd::LittleDict, sz)
+    sizehint!(dd.keys, sz)
+    sizehint!(dd.vals,sz)
+    return dd
+end
 
-function Base.setindex!(dd::LittleDict, value, key)
-    @assert length(dd.keys) == length(dd.vals)
-    @simd for ii in 1:length(dd.keys)
-        cand = @inbounds dd.keys[ii]
-        isequal(cand, key) && return @inbounds(dd.vals[ii] = value)
-    end
+function add_new!(dd::LittleDict, key, value)
     # Not found, add to the end
     push!(dd.keys, key)
     try
@@ -128,6 +136,15 @@ function Base.setindex!(dd::LittleDict, value, key)
         rethrow()
     end
     return value
+end
+
+function Base.setindex!(dd::LittleDict, value, key)
+    @assert length(dd.keys) == length(dd.vals)
+    @simd for ii in 1:length(dd.keys)
+        cand = @inbounds dd.keys[ii]
+        isequal(cand, key) && return @inbounds(dd.vals[ii] = value)
+    end
+    return add_new!(dd, key, value)
 end
 
 function Base.pop!(dd::LittleDict)
@@ -157,3 +174,13 @@ function Base.delete!(dd::LittleDict, key)
 end
 
 Base.empty!(dd::LittleDict) = (empty!(dd.keys); empty!(dd.vals); dd)
+
+function get!(default::Base.Callable, dd::LittleDict, key)
+    got = get(dd, key, NotFoundSentinel())
+    if got isa NotFoundSentinel  # not found
+        return add_new!(dd, key, default())
+    else
+        return got
+    end
+end
+get!(dd::LittleDict, key, default) = get!(()->default, dd, key)

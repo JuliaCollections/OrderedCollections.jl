@@ -337,7 +337,7 @@ function get!(default::Base.Callable, h::OrderedDict{K,V}, key0) where {K,V}
 
     h.dirty = false
     v = convert(V,  default())
-    if h.dirty
+    if h.dirty  # calling default could have dirtied h
         index = ht_keyindex2(h, key)
     end
     if index > 0
