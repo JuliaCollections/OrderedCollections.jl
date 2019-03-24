@@ -421,20 +421,21 @@ function iterate(t::OrderedDict, i)
     return (Pair(t.keys[i],t.vals[i]), i+1)
 end
 
-function merge(d::OrderedDict, others::AbstractDict...)
+function _merge_kvtypes(d, others...)
     K, V = keytype(d), valtype(d)
     for other in others
         K = promote_type(K, keytype(other))
         V = promote_type(V, valtype(other))
     end
+    return (K,V)
+end
+
+function merge(d::OrderedDict, others::AbstractDict...)
+    K,V = _merge_kvtypes(d, others...)
     merge!(OrderedDict{K,V}(), d, others...)
 end
 
 function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
-    K, V = keytype(d), valtype(d)
-    for other in others
-        K = promote_type(K, keytype(other))
-        V = promote_type(V, valtype(other))
-    end
+    K,V = _merge_kvtypes(d, others...)
     merge!(combine, OrderedDict{K,V}(), d, others...)
 end

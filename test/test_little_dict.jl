@@ -352,7 +352,7 @@ using OrderedCollections, Test
         end
     end
 
-    @testset "Issue #216" begin
+    @testset "isordered (Issue #216)1" begin
         @test OrderedCollections.isordered(LittleDict{Int, String})
         @test !OrderedCollections.isordered(Dict{Int, String})
     end
@@ -413,7 +413,8 @@ using OrderedCollections, Test
     end
 
     @testset "Sorting" begin
-        d = Dict(i=>Char(123-i) for i = 1:10)
+        d = LittleDict(i=>Char(123-i) for i in [4, 8, 1, 7, 9, 3, 10, 2, 6, 5])
+        
         @test collect(keys(d)) != 1:10
         sd = sort(d)
         @test collect(keys(sd)) == 1:10
@@ -428,5 +429,4 @@ using OrderedCollections, Test
         @test merge(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
-
 end # @testset LittleDict

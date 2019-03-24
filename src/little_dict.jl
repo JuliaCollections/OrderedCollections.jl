@@ -80,6 +80,8 @@ function freeze(dd::AbstractDict)
     return LittleDict(ks, vs)
 end
 
+isordered(::Type{<:LittleDict}) = true
+
 ##### Methods that all AbstractDicts should implement
 
 Base.length(dd::LittleDict) = length(dd.keys)
@@ -115,6 +117,34 @@ function Base.iterate(dd::LittleDict, ii=1)
     return (dd.keys[ii] => dd.vals[ii], ii+1)
 end
 
+function merge(d1::LittleDict, d2::AbstractDict)
+    return merge((x,y)->y, d1, d2)
+end
+
+function merge(
+    combine::Function,
+    d::LittleDict,
+    others::AbstractDict...
+    )
+    K,V = _merge_kvtypes(d, others...)
+    dc = LittleDict{K,V}(d)
+    for d2 in others
+        for (k2,v2) in d2
+            got = get(dc, k2, NotFoundSentinel())
+            if got isa NotFoundSentinel
+                add_new!(dc, k2, v2)
+            else
+                # GOLDPLATE: ideally we would avoid iterating this twice
+                # once for get and once for setindex!
+                dc[k2]=combine(got, v2)
+            end
+        end
+    end
+    return dc
+end
+
+
+Base.empty(dd::LittleDict{K,V}) where {K,V} = LittleDict{K,V}()
 
 ######## Methods that all mutable AbstractDict's should implement
 
@@ -144,7 +174,8 @@ function Base.setindex!(dd::LittleDict, value, key)
         cand = @inbounds dd.keys[ii]
         isequal(cand, key) && return @inbounds(dd.vals[ii] = value)
     end
-    return add_new!(dd, key, value)
+    add_new!(dd, key, value)
+    return dd
 end
 
 function Base.pop!(dd::LittleDict)
