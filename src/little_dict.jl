@@ -119,7 +119,14 @@ function Base.setindex!(dd::LittleDict, value, key)
     end
     # Not found, add to the end
     push!(dd.keys, key)
-    push!(dd.vals, value)
+    try
+        push!(dd.vals, value)
+    catch
+        # if we sucessfully added  a key, but failed to add a value
+        # then we need to remove the key so the little dict remains with constistant state
+        pop!(dd.keys)
+        rethrow()
+    end
     return value
 end
 

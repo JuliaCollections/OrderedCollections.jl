@@ -241,7 +241,16 @@ using OrderedCollections, Test
         @test first(LittleDict([(:f, 2)])) == Pair(:f,2)
     end
 
-    @testset "Issue #1821" begin
+
+    @testset "iterate" begin
+        d = LittleDict("a" => [1, 2])
+        val1, state1 = iterate(d)
+        @test val1 == ("a" => [1, 2])
+        @test iterate(d, state1) === nothing
+    end
+
+
+    @testset "Failing to add a value but being able to add a key (cf: Issue #1821)" begin
         d = LittleDict{String, Vector{Int}}()
         d["a"] = [1, 2]
         @test_throws MethodError d["b"] = 1
