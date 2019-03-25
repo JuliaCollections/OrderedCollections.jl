@@ -167,14 +167,32 @@ function add_new!(dd::LittleDict, key, value)
         pop!(dd.keys)
         rethrow()
     end
-    return value
+    return dd
+end
+
+
+# This is the safe case that can't error on the adding of values.
+# So no catching exceptions then rollback of adding keys is needed
+# Optimising this case gives a 30% speedup on setindex! when element is new
+# On a vaguely realistic microbenchmark
+function add_new!(dd::LittleDict{<:Any,V,<:Vector,<:Vector{V}}, key, value::V) where {V}
+    # Not found, add to the end
+    push!(dd.keys, key)
+    push!(dd.vals, value)
+    return dd
 end
 
 function Base.setindex!(dd::LittleDict, value, key)
-    @assert length(dd.keys) == length(dd.vals)
-    @simd for ii in 1:length(dd.keys)
+    # Assertion below commented out as by standards of carefully optimised
+    # setindex! it has huge code (26%), this does mean that if someone has messed
+    # with the fields of the LittleDict directly, then the @inbounds could be invalid
+    #@assert length(dd.keys) == length(dd.vals)
+    for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
-        isequal(cand, key) && return @inbounds(dd.vals[ii] = value)
+        if isequal(cand, key)
+            @inbounds(dd.vals[ii] = value)
+            return dd
+        end
     end
     add_new!(dd, key, value)
     return dd
