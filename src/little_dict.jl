@@ -49,7 +49,6 @@ function LittleDict{K,V}(itr) where {K,V}
     return LittleDict(ks, vs)
 end
 
-#LittleDict() = LittleDict{Any, Any}()
 LittleDict{K,V}(itr...) where {K,V} = LittleDict{K,V}(itr)
 LittleDict(itr...) = LittleDict(itr)
 LittleDict(itr::T) where T = LittleDict{kvtype(eltype(T))...}(itr)
