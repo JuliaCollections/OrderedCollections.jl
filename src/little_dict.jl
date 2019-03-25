@@ -235,7 +235,9 @@ Base.empty!(dd::LittleDict) = (empty!(dd.keys); empty!(dd.vals); dd)
 function get!(default::Base.Callable, dd::LittleDict, key)
     got = get(dd, key, NotFoundSentinel())
     if got isa NotFoundSentinel  # not found
-        return add_new!(dd, key, default())
+        val = default()
+        add_new!(dd, key, val)
+        return val
     else
         return got
     end
