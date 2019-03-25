@@ -25,9 +25,16 @@ struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
     vals::VS
 end
 
-function LittleDict(ks::KS, vs::VS) where {KS<:StoreType,VS<:StoreType}
-    return LittleDict{eltype(KS), eltype(VS), KS, VS}(ks, vs)
+function LittleDict{K,V}(ks::KS, vs::VS) where {K,V, KS<:StoreType,VS<:StoreType}
+    K<:eltype(KS) || ArgumentError("Invalid store type $KS, for key type $K")
+    V<:eltype(VS) || ArgumentError("Invalid store type $VS, for value type $K")
+    return LittleDict{K, V, KS, VS}(ks, vs)
 end
+
+function LittleDict(ks::KS, vs::VS) where {KS<:StoreType,VS<:StoreType}
+    return LittleDict{eltype(KS), eltype(VS)}(ks, vs)
+end
+
 
 # Other iterators should be copyed to a Vector
 LittleDict(ks, vs) = LittleDict(collect(ks), collect(vs))

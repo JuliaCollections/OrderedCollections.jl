@@ -27,8 +27,11 @@ using OrderedCollections, Test
 
         k_iter = Iterators.filter(x->x>1, [1,2,3,4])
         v_iter = Iterators.filter(x->x>1, [1.0,2.0,3.0,4.0])
-        @test @inferred(LittleDict(k_iter, v_iter)) isa LittleDict{Int,Float64, Vector{Int}, Vector{Float64}}
+        @test @inferred(LittleDict(k_iter, v_iter)) isa
+            LittleDict{Int,Float64, Vector{Int}, Vector{Float64}}
 
+        @test @inferred(LittleDict{Int, Char}(rand(1:100,20), rand('a':'z', 20))) isa
+            LittleDict{Int64,Char,Array{Int64,1},Array{Char,1}}
     end
     
     @testset "empty dictionary" begin
