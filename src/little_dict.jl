@@ -193,7 +193,7 @@ function Base.setindex!(dd::LittleDict, value, key)
     # setindex! it has huge code (26%), this does mean that if someone has messed
     # with the fields of the LittleDict directly, then the @inbounds could be invalid
     #@assert length(dd.keys) == length(dd.vals)
-    @simd for ii in 1:length(dd.keys)
+    for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
         if isequal(cand, key)
             @inbounds(dd.vals[ii] = value)
@@ -212,7 +212,7 @@ end
 function Base.pop!(dd::LittleDict, key)
     @assert length(dd.keys) == length(dd.vals)
     
-    @simd for ii in 1:length(dd.keys)
+    for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
         if isequal(cand, key)
             deleteat!(dd.keys, ii)
