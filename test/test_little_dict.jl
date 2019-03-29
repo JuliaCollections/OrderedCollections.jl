@@ -455,8 +455,9 @@ end # @testset LittleDict
         @test base_dict == nonfrozen
 
         frozen = freeze(nonfrozen)
-        @test frozen == base_dict
         @test frozen isa LittleDict{Int, String, <:Tuple, <:Tuple}
+        @test frozen == base_dict
+        @test frozen === base_dict
     end
 
     @testset "get" begin
