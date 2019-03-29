@@ -85,6 +85,7 @@ kvtype(::Type{Tuple{K,V}}) where {K,V} = (K,V)
 kvtype(::Type{Tuple{<:Any,V}}) where {V} = (Any,V)
 kvtype(::Type{Tuple{K,<:Any}}) where {K} = (K,Any)
 
+
 """
     freeze(dd::AbstractDict)
 Render an dictionary immutable by converting it to a `Tuple` backed
@@ -99,6 +100,10 @@ function freeze(dd::AbstractDict)
 end
 
 isordered(::Type{<:LittleDict}) = true
+
+# For now these are internal UnionAlls for dispatch purposes
+const UnfrozenLittleDict{K,V} = LittleDict{K,V, Vector{K}, Vector{V}}
+const FrozenLittleDict{K,V} = LittleDict{K,V, <:Tuple, <:Tuple}
 
 ##### Methods that all AbstractDicts should implement
 
@@ -166,47 +171,40 @@ Base.empty(dd::LittleDict{K,V}) where {K,V} = LittleDict{K,V}()
 
 ######## Methods that all mutable AbstractDict's should implement
 
-function Base.sizehint!(dd::LittleDict, sz)
+function Base.sizehint!(dd::UnfrozenLittleDict, sz)
     sizehint!(dd.keys, sz)
     sizehint!(dd.vals,sz)
     return dd
 end
 
-function add_new!(dd::LittleDict, key, value)
-    # Not found, add to the end
-    push!(dd.keys, key)
-    try
-        push!(dd.vals, value)
-    catch
-        # if we sucessfully added  a key, but failed to add a value
-        # then we need to remove the key so the little dict remains with constistant state
-        pop!(dd.keys)
-        rethrow()
-    end
+function add_new!(dd::UnfrozenLittleDict{K, V}, key, value) where {K, V}
+    kk = convert(K, key)
+    vv = convert(V, value)
+
+    # if we can convert it to the right type, and the dict is unfrozen
+    # then neither push can fail, so the dict length with remain in sync
+    push!(dd.keys, kk)
+    push!(dd.vals, vv)
+    
     return dd
 end
 
 
-# This is the safe case that can't error on the adding of values.
-# So no catching exceptions then rollback of adding keys is needed
-# Optimising this case gives a 30% speedup on setindex! when element is new
-# On a vaguely realistic microbenchmark
-function add_new!(dd::LittleDict{<:Any,V,<:Vector,<:Vector{V}}, key, value::V) where {V}
-    # Not found, add to the end
-    push!(dd.keys, key)
-    push!(dd.vals, value)
-    return dd
-end
+function Base.setindex!(dd::LittleDict{K,V, <:Any, <:Vector}, value, key) where {K,V}
+    # Note we only care if the Value store is mutable (<:Vector)
+    # As we can have immutable keys, if we are setting the value of an existing key
 
-function Base.setindex!(dd::LittleDict, value, key)
     # Assertion below commented out as by standards of carefully optimised
     # setindex! it has huge code (26%), this does mean that if someone has messed
     # with the fields of the LittleDict directly, then the @inbounds could be invalid
     #@assert length(dd.keys) == length(dd.vals)
+    
+    kk = convert(K, key)
+    vv = convert(V, value)
     for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
-        if isequal(cand, key)
-            @inbounds(dd.vals[ii] = value)
+        if isequal(cand, kk)
+            @inbounds(dd.vals[ii] = vv)
             return dd
         end
     end
@@ -214,12 +212,12 @@ function Base.setindex!(dd::LittleDict, value, key)
     return dd
 end
 
-function Base.pop!(dd::LittleDict)
+function Base.pop!(dd::UnfrozenLittleDict)
     pop!(dd.keys)
     return pop!(dd.vals)
 end
 
-function Base.pop!(dd::LittleDict, key)
+function Base.pop!(dd::UnfrozenLittleDict, key)
     @assert length(dd.keys) == length(dd.vals)
     
     for ii in 1:length(dd.keys)
@@ -235,14 +233,14 @@ function Base.pop!(dd::LittleDict, key)
     throw(KeyError(key))
 end
 
-function Base.delete!(dd::LittleDict, key)
+function Base.delete!(dd::UnfrozenLittleDict, key)
     pop!(dd, key)
     return dd
 end
 
-Base.empty!(dd::LittleDict) = (empty!(dd.keys); empty!(dd.vals); dd)
+Base.empty!(dd::UnfrozenLittleDict) = (empty!(dd.keys); empty!(dd.vals); dd)
 
-function get!(default::Base.Callable, dd::LittleDict, key)
+function get!(default::Base.Callable, dd::UnfrozenLittleDict, key)
     got = get(dd, key, NotFoundSentinel())
     if got isa NotFoundSentinel  # not found
         val = default()
@@ -252,4 +250,4 @@ function get!(default::Base.Callable, dd::LittleDict, key)
         return got
     end
 end
-get!(dd::LittleDict, key, default) = get!(()->default, dd, key)
+get!(dd::UnfrozenLittleDict, key, default) = get!(()->default, dd, key)

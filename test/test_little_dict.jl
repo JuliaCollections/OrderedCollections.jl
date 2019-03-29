@@ -1,6 +1,43 @@
 using OrderedCollections, Test
+using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
 
 @testset "LittleDict" begin
+    @testset "Type Aliases" begin
+        FF1 = LittleDict{Int,Int, NTuple{10, Int}, NTuple{10, Int}}
+        @test FF1 <: FrozenLittleDict{<:Any, <:Any}
+        @test FF1 <: FrozenLittleDict
+        @test FF1 <: FrozenLittleDict{Int, Int}
+        @test !(FF1 <: UnfrozenLittleDict{<:Any, <:Any})
+        @test !(FF1 <: UnfrozenLittleDict)
+        @test !(FF1 <: UnfrozenLittleDict{Int, Int})
+
+
+        UU1 = LittleDict{Int,Int,Vector{Int},Vector{Int}}
+        @test !(UU1 <: FrozenLittleDict{<:Any, <:Any})
+        @test !(UU1 <: FrozenLittleDict)
+        @test !(UU1 <: FrozenLittleDict{Int, Int})
+        @test (UU1 <: UnfrozenLittleDict{<:Any, <:Any})
+        @test (UU1 <: UnfrozenLittleDict)
+        @test (UU1 <: UnfrozenLittleDict{Int, Int})
+
+
+        FU1 = LittleDict{Int,Int,NTuple{10, Int},Vector{Int}}
+        @test !(FU1 <: FrozenLittleDict{<:Any, <:Any})
+        @test !(FU1 <: FrozenLittleDict)
+        @test !(FU1 <: FrozenLittleDict{Int, Int})
+        @test !(FU1 <: UnfrozenLittleDict{<:Any, <:Any})
+        @test !(FU1 <: UnfrozenLittleDict)
+        @test !(FU1 <: UnfrozenLittleDict{Int, Int})
+
+        UF1 = LittleDict{Int,Int,Vector{Int},NTuple{10,Int}}
+        @test !(UF1 <: FrozenLittleDict{<:Any, <:Any})
+        @test !(UF1 <: FrozenLittleDict)
+        @test !(UF1 <: FrozenLittleDict{Int, Int})
+        @test !(UF1 <: UnfrozenLittleDict{<:Any, <:Any})
+        @test !(UF1 <: UnfrozenLittleDict)
+        @test !(UF1 <: UnfrozenLittleDict{Int, Int})
+    end
+
     @testset "Constructors" begin
         @test isa(@inferred(LittleDict()), LittleDict{Any,Any})
         @test isa(@inferred(LittleDict([(1,2.0)])), LittleDict{Int,Float64})
@@ -36,7 +73,8 @@ using OrderedCollections, Test
         # Different number of keys and values
         @test_throws ArgumentError LittleDict{Int, Char, Vector{Int}, Vector{Char}}([1,2,3], ['a','b'])
     end
-    
+
+
     @testset "empty dictionary" begin
         d = LittleDict{Char, Int}()
         @test length(d) == 0
