@@ -17,10 +17,12 @@ module OrderedCollections
                  valtype, lastindex, nextind,
                  copymutable, emptymutable
 
-    export OrderedDict, OrderedSet
+    export OrderedDict, OrderedSet, LittleDict
+    export freeze
 
     include("dict_support.jl")
     include("ordered_dict.jl")
+    include("little_dict.jl")
     include("ordered_set.jl")
     include("dict_sorting.jl")
 

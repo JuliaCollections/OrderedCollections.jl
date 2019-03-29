@@ -19,3 +19,13 @@ end
 
 sort(d::OrderedDict; args...) = sort!(copy(d); args...)
 sort(d::Dict; args...) = sort!(OrderedDict(d); args...)
+
+function sort(d::LittleDict; byvalue::Bool=false, args...)
+    if byvalue
+        p = sortperm(d.vals; args...)
+    else
+        p = sortperm(d.keys; args...)
+    end
+    return LittleDict(d.keys[p], d.vals[p])
+end
+

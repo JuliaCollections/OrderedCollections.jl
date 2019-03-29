@@ -337,7 +337,7 @@ function get!(default::Base.Callable, h::OrderedDict{K,V}, key0) where {K,V}
 
     h.dirty = false
     v = convert(V,  default())
-    if h.dirty
+    if h.dirty  # calling default could have dirtied h
         index = ht_keyindex2(h, key)
     end
     if index > 0
@@ -421,20 +421,21 @@ function iterate(t::OrderedDict, i)
     return (Pair(t.keys[i],t.vals[i]), i+1)
 end
 
-function merge(d::OrderedDict, others::AbstractDict...)
+function _merge_kvtypes(d, others...)
     K, V = keytype(d), valtype(d)
     for other in others
         K = promote_type(K, keytype(other))
         V = promote_type(V, valtype(other))
     end
+    return (K,V)
+end
+
+function merge(d::OrderedDict, others::AbstractDict...)
+    K,V = _merge_kvtypes(d, others...)
     merge!(OrderedDict{K,V}(), d, others...)
 end
 
 function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
-    K, V = keytype(d), valtype(d)
-    for other in others
-        K = promote_type(K, keytype(other))
-        V = promote_type(V, valtype(other))
-    end
+    K,V = _merge_kvtypes(d, others...)
     merge!(combine, OrderedDict{K,V}(), d, others...)
 end

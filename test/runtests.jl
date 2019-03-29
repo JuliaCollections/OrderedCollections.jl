@@ -5,6 +5,7 @@ using Random, Serialization
 @test isempty(detect_ambiguities(Base, Core, OrderedCollections))
 
 tests = [
+         "little_dict",
          "ordered_dict",
          "ordered_set",
         ]
