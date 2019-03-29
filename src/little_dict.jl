@@ -23,6 +23,16 @@ as well as on how many hash collisions occur etc.
 struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
     keys::KS
     vals::VS
+
+    function LittleDict{K,V,KS,VS}(keys,vals) where {K,V,KS,VS}
+        if length(keys) != length(vals)
+            throw(ArgumentError(
+                "Number of keys ($(length(keys))) differs from " *
+                "number of values ($(length(vals))"
+            ))
+        end
+        return new(keys,vals)
+    end
 end
 
 function LittleDict{K,V}(ks::KS, vs::VS) where {K,V, KS<:StoreType,VS<:StoreType}

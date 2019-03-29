@@ -32,6 +32,9 @@ using OrderedCollections, Test
 
         @test @inferred(LittleDict{Int, Char}(rand(1:100,20), rand('a':'z', 20))) isa
             LittleDict{Int64,Char,Array{Int64,1},Array{Char,1}}
+
+        # Different number of keys and values
+        @test_throws ArgumentError LittleDict{Int, Char, Vector{Int}, Vector{Char}}([1,2,3], ['a','b'])
     end
     
     @testset "empty dictionary" begin
