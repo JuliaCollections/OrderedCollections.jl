@@ -44,3 +44,9 @@ end
 The insertion order is conserved when iterating on the dictionary itself,
 its keys (through `keys(d)`), or its values (through `values(d)`).
 All standard `Associative` and `Dict` functions are available for `OrderedDicts`
+
+# LittleDict
+```@docs
+LittleDict
+freeze
+```
