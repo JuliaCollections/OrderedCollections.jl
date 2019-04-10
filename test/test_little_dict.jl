@@ -58,7 +58,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
 
         iter = Iterators.filter(x->x.first>1, [Pair(1, 1.0), Pair(2, 2.0), Pair(3, 3.0)])
         @test @inferred(LittleDict(iter)) == LittleDict{Int,Float64}(2=>2.0, 3=>3.0)
-        
+
         iter = Iterators.drop(1:10, 1)
         @test_throws ArgumentError LittleDict(iter)
 
@@ -201,7 +201,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         h["a","b","c"] = 4
         @test h["a","b","c"] == h[("a","b","c")] == 4
     end
-    
+
     @testset "KeyError" begin
         z = LittleDict()
         get_KeyError = false
@@ -234,7 +234,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test isa(d3, LittleDict{Int,Int})
         @test isa(d4, LittleDict{Int,Int})
     end
-    
+
     @testset "from tuple/vector/pairs/tuple of pair 2" begin
         d = LittleDict(((1, 2), (3, "b")))
         d2 = LittleDict([(1, 2), (3, "b")])
@@ -463,7 +463,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
 
     @testset "Sorting" begin
         d = LittleDict(i=>Char(123-i) for i in [4, 8, 1, 7, 9, 3, 10, 2, 6, 5])
-        
+
         @test collect(keys(d)) != 1:10
         sd = sort(d)
         @test collect(keys(sd)) == 1:10
@@ -486,10 +486,10 @@ end # @testset LittleDict
     @testset "types" begin
         base_dict = LittleDict((10,20,30),("a", "b", "c"))
         @test base_dict isa LittleDict{Int, String, <:Tuple, <:Tuple}
-        
+
         nonfrozen = LittleDict(10=>"a", 20=>"b", 30=>"c")
         @test nonfrozen isa LittleDict{Int, String, <:Vector, <:Vector}
-        
+
         @test base_dict == nonfrozen
 
         frozen = freeze(nonfrozen)
@@ -513,4 +513,10 @@ end # @testset LittleDict
         @test_throws MethodError fd[30] = "cc"
         @test_throws MethodError fd[-1] = "dd"
     end
+    @testset "map!(f, values(LittleDict))" begin
+        testdict = LittleDict(:a=>1, :b=>2)
+        map!(v->v-1, values(testdict))
+        @test testdict[:a] == 0
+        @test testdict[:b] == 1
+end
 end

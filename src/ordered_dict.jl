@@ -439,3 +439,13 @@ function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
     K,V = _merge_kvtypes(d, others...)
     merge!(combine, OrderedDict{K,V}(), d, others...)
 end
+
+function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
+    dict = iter.dict
+    dict.ndel > 0 && rehash!(dict)
+    vals = dict.vals
+    for i = 1:length(vals)
+        @inbounds vals[i] = f(vals[i])
+    end
+    return iter
+end
