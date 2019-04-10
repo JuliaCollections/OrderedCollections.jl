@@ -444,7 +444,7 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
     dict.ndel > 0 && rehash!(dict)
     vals = dict.vals
-    for i = 1:length(vals)
+    for i in 1:length(vals)
         @inbounds vals[i] = f(vals[i])
     end
     return iter
