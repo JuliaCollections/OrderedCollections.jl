@@ -60,7 +60,7 @@ end
 #> 'd' => 4
 ``` 
 The `LittleDict` acts similarly to the `OrderedDict`.
-Hoever for small collections it is much faster.
+However for small collections it is much faster.
 Indeed the preceeding example (with the io redirected to `devnull`), runs 4x faster in the `LittleDict` version as the earlier `OrderedDict` version.
 
 ```@docs
