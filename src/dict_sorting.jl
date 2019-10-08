@@ -18,7 +18,7 @@ function sort!(d::OrderedDict; byvalue::Bool=false, args...)
 end
 
 sort(d::OrderedDict; args...) = sort!(copy(d); args...)
-sort(d::Dict; args...) = sort!(OrderedDict(d); args...)
+@deprecate sort(d::Dict; args...) sort!(OrderedDict(d); args...)
 
 function sort(d::LittleDict; byvalue::Bool=false, args...)
     if byvalue
