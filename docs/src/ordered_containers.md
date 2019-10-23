@@ -44,3 +44,26 @@ end
 The insertion order is conserved when iterating on the dictionary itself,
 its keys (through `keys(d)`), or its values (through `values(d)`).
 All standard `Associative` and `Dict` functions are available for `OrderedDicts`
+
+# LittleDict
+```julia
+d = LittleDict{Char,Int}()	
+for c in 'a':'d'
+    d[c] = c-'a'+1
+end
+for x in d
+   println(x)
+end
+#> 'a' => 1
+#> 'b' => 2
+#> 'c' => 3
+#> 'd' => 4
+``` 
+The `LittleDict` acts similarly to the `OrderedDict`.
+However for small collections it is much faster.
+Indeed the preceeding example (with the io redirected to `devnull`), runs 4x faster in the `LittleDict` version as the earlier `OrderedDict` version.
+
+```@docs
+LittleDict
+freeze
+```

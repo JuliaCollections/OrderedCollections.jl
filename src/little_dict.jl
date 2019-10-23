@@ -31,13 +31,14 @@ struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
                 "number of values ($(length(vals))"
             ))
         end
+        K<:eltype(KS) || ArgumentError("Invalid store type $KS, for key type $K")
+        V<:eltype(VS) || ArgumentError("Invalid store type $VS, for value type $K")
+        
         return new(keys,vals)
     end
 end
 
 function LittleDict{K,V}(ks::KS, vs::VS) where {K,V, KS<:StoreType,VS<:StoreType}
-    K<:eltype(KS) || ArgumentError("Invalid store type $KS, for key type $K")
-    V<:eltype(VS) || ArgumentError("Invalid store type $VS, for value type $K")
     return LittleDict{K, V, KS, VS}(ks, vs)
 end
 
