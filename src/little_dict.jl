@@ -10,7 +10,7 @@ it just keeps everything in a pair of lists.
 
 While theoretically this has expected time complexity _O(n)_,
 vs the hash-based `OrderDict`/`Dict`'s expected time complexity _O(1)_,
-and the search-tree-based `SortedDict`'s expected time complcity _O(log(n))_.
+and the search-tree-based `SortedDict`'s expected time complexity _O(log(n))_.
 In practice it is really fast, because it is cache & SIMD friendly.
 
 It is reasonable to expect it to outperform an `OrderedDict`,
@@ -47,7 +47,7 @@ function LittleDict(ks::KS, vs::VS) where {KS<:StoreType,VS<:StoreType}
 end
 
 
-# Other iterators should be copyed to a Vector
+# Other iterators should be copied to a Vector
 LittleDict(ks, vs) = LittleDict(collect(ks), collect(vs))
 
 
