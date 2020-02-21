@@ -68,7 +68,7 @@ function OrderedDict(kv)
         dict_with_eltype(kv, eltype(kv))
     catch e
         if isempty(methods(iterate, (typeof(kv),))) ||
-            !all(x->isa(x,Union{Tuple,Pair}),kv)
+            !all(x->isa(x, Union{Tuple,Pair}), kv)
             throw(ArgumentError("OrderedDict(kv): kv needs to be an iterator of tuples or pairs"))
         else
             rethrow(e)
@@ -83,7 +83,7 @@ dict_with_eltype(kv, t) = OrderedDict{Any,Any}(kv)
 empty(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
 
 length(d::OrderedDict) = length(d.keys) - d.ndel
-isempty(d::OrderedDict) = (length(d)==0)
+isempty(d::OrderedDict) = (length(d) == 0)
 
 """
     isordered(::Type)
@@ -129,7 +129,7 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
         return h
     end
 
-    slots = zeros(Int32,newsz)
+    slots = zeros(Int32, newsz)
 
     if h.ndel > 0
         ndel0 = h.ndel
@@ -236,7 +236,7 @@ function ht_keyindex(h::OrderedDict{K,V}, key, direct) where {K,V}
         end
 
         index = (index & (sz-1)) + 1
-        iter+=1
+        iter += 1
     end
 
     return -1
@@ -262,7 +262,7 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
         end
 
         index = (index & (sz-1)) + 1
-        iter+=1
+        iter += 1
     end
 
     rehash!(h, length(h) > 64000 ? sz*2 : sz*4)
@@ -292,11 +292,11 @@ function _setindex!(h::OrderedDict, v, key, index)
 end
 
 function setindex!(h::OrderedDict{K,V}, v0, key0) where {K,V}
-    key = convert(K,key0)
-    if !isequal(key,key0)
+    key = convert(K, key0)
+    if !isequal(key, key0)
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
-    v = convert(V,  v0)
+    v = convert(V, v0)
 
     index = ht_keyindex2(h, key)
 
@@ -311,8 +311,8 @@ function setindex!(h::OrderedDict{K,V}, v0, key0) where {K,V}
 end
 
 function get!(h::OrderedDict{K,V}, key0, default) where {K,V}
-    key = convert(K,key0)
-    if !isequal(key,key0)
+    key = convert(K, key0)
+    if !isequal(key, key0)
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
 
@@ -326,8 +326,8 @@ function get!(h::OrderedDict{K,V}, key0, default) where {K,V}
 end
 
 function get!(default::Base.Callable, h::OrderedDict{K,V}, key0) where {K,V}
-    key = convert(K,key0)
-    if !isequal(key,key0)
+    key = convert(K, key0)
+    if !isequal(key, key0)
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
 
@@ -414,11 +414,11 @@ end
 function iterate(t::OrderedDict)
     t.ndel > 0 && rehash!(t)
     length(t.keys) < 1 && return nothing
-    return (Pair(t.keys[1],t.vals[1]), 2)
+    return (Pair(t.keys[1], t.vals[1]), 2)
 end
 function iterate(t::OrderedDict, i)
     length(t.keys) < i && return nothing
-    return (Pair(t.keys[i],t.vals[i]), i+1)
+    return (Pair(t.keys[i], t.vals[i]), i+1)
 end
 
 function _merge_kvtypes(d, others...)
