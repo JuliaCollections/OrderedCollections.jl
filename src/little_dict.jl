@@ -75,6 +75,9 @@ LittleDict(itr::T) where T = LittleDict{kvtype(eltype(T))...}(itr)
 LittleDict(itr1::Pair, itr2::Pair) = LittleDict(first.([itr1, itr2]), last.([itr1,itr2]))
 LittleDict(itr1::Pair) = LittleDict([first(itr1)], [last(itr1)])
 
+# Insertion into LittleDict, when there is single Tuple or Pair
+LittleDict{K, V}(itr::Union{Pair{K, V}, Tuple{K, V}}) where {K, V} = LittleDict([first(itr)], [last(itr)])
+
 kvtype(::Any) = (Any, Any)
 kvtype(::Type{Union{}}) = (Any,Any)
 
