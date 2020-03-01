@@ -382,7 +382,7 @@ function pop!(h::OrderedDict)
     h.ndel > 0 && rehash!(h)
     key = h.keys[end]
     index = ht_keyindex(h, key, false)
-    key => _pop!(h, index)
+    return key => _pop!(h, index)
 end
 
 function pop!(h::OrderedDict, key)
@@ -402,13 +402,13 @@ function _delete!(h::OrderedDict, index)
     ccall(:jl_arrayunset, Cvoid, (Any, UInt), h.vals, ki-1)
     h.ndel += 1
     h.dirty = true
-    h
+    return h
 end
 
 function delete!(h::OrderedDict, key)
     index = ht_keyindex(h, key, false)
     if index > 0; _delete!(h, index); end
-    h
+    return h
 end
 
 function iterate(t::OrderedDict)
