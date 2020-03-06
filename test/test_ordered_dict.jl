@@ -397,11 +397,11 @@ using OrderedCollections, Test
     @testset "Sorting" begin
         d = Dict(i=>Char(123-i) for i = 1:10)
         @test collect(keys(d)) != 1:10
-        sd = sort(d)
+        sd = sort!(OrderedDict(d))
         @test collect(keys(sd)) == 1:10
         @test collect(values(sd)) == collect('z':-1:'q')
         @test sort(sd) == sd
-        sdv = sort(d; byvalue=true)
+        sdv = sort!(OrderedDict(d); byvalue=true)
         @test collect(keys(sdv)) == 10:-1:1
         @test collect(values(sdv)) == collect('q':'z')
     end

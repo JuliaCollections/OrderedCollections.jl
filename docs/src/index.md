@@ -4,6 +4,7 @@ This package implements associative containers that preserve the order of insert
 
 -   OrderedDict
 -   OrderedSet
+-   LittleDict
 
 ## Contents
 

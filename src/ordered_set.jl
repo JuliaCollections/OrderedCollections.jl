@@ -19,7 +19,6 @@ isempty(s::OrderedSet) = isempty(s.dict)
 length(s::OrderedSet)  = length(s.dict)
 
 sizehint!(s::OrderedSet, sz::Integer) = (sizehint!(s.dict, sz); s)
-eltype(s::OrderedSet{T}) where {T} = T
 
 in(x, s::OrderedSet) = haskey(s.dict, x)
 
