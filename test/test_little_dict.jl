@@ -482,7 +482,13 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
     @testset "issue #27" begin
         d = LittleDict{Symbol, Int}(:x=>1)
         d1 = LittleDict(:x=>1)
-        @test d == d1
+        d_wide = LittleDict{Symbol, Number}(:x=>1)
+        @test d == d1 == d_wide
+        @test d isa LittleDict{Symbol, Int}
+        @test d1 isa LittleDict{Symbol, Int}
+        @test d_wide isa LittleDict{Symbol, Number}
+
+        @test_throws MethodError LittleDict{Char,Char}(:x => 1)
     end
 end # @testset LittleDict
 

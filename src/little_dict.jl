@@ -54,9 +54,7 @@ LittleDict(ks, vs) = LittleDict(collect(ks), collect(vs))
 function LittleDict{K,V}(itr) where {K,V}
     ks = K[]
     vs = V[]
-    # handle the special case of a single Pair
-    itr isa Pair{K, V} && return LittleDict([first(itr)], [last(itr)])	
-    for val in itr
+   for val in itr
         if !(val isa Union{Tuple{<:Any, <:Any}, Pair})
             throw(ArgumentError(
                 "LittleDict(kv): kv needs to be an iterator of tuples or pairs")
@@ -76,6 +74,7 @@ LittleDict(itr::T) where T = LittleDict{kvtype(eltype(T))...}(itr)
 # Avoid contention between the core constructor, and the list of elements
 LittleDict(itr1::Pair, itr2::Pair) = LittleDict(first.([itr1, itr2]), last.([itr1,itr2]))
 LittleDict(itr1::Pair) = LittleDict([first(itr1)], [last(itr1)])
+LittleDict{K, V}(itr::Pair) where {K, V} = LittleDict{K,V}(K[first(itr)], V[last(itr)])
 
 kvtype(::Any) = (Any, Any)
 kvtype(::Type{Union{}}) = (Any,Any)
