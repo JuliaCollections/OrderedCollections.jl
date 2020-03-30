@@ -442,10 +442,15 @@ end
 
 function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
-    dict.ndel > 0 && rehash!(dict)
     vals = dict.vals
-    for i in 1:length(vals)
-        @inbounds vals[i] = f(vals[i])
+    elements = length(vals) - dict.ndel
+    elements == 0 && return iter
+    for i in dict.slots
+        if i > 0
+            @inbounds vals[i] = f(vals[i])
+            elements -= 1
+            elements == 0 && break
+        end
     end
     return iter
 end
