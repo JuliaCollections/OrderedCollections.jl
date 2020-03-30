@@ -394,6 +394,13 @@ using OrderedCollections, Test
         @test filter(p->first(p) > 1, OrderedDict(1=>2, 3=>4)) isa OrderedDict
     end
 
+    @testset "Issue #30" begin 
+        d = OrderedDict(:a=>1, :b=>2)
+        d1 = OrderedDict(k=>v for (k,v) in d)
+        @test keytype(d1) == keytype(d)
+        @test valtype(d1) == valtype(d)
+    end
+
     @testset "Sorting" begin
         d = Dict(i=>Char(123-i) for i = 1:10)
         @test collect(keys(d)) != 1:10

@@ -15,7 +15,7 @@ module OrderedCollections
                  searchsortedfirst, searchsortedlast, in,
                  filter, filter!, ValueIterator, eachindex, keytype,
                  valtype, lastindex, nextind,
-                 copymutable, emptymutable
+                 copymutable, emptymutable, dict_with_eltype
 
     export OrderedDict, OrderedSet, LittleDict
     export freeze

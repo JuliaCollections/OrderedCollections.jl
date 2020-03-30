@@ -65,7 +65,7 @@ OrderedDict(ps::Pair...)                           = OrderedDict{Any,Any}(ps)
 
 function OrderedDict(kv)
     try
-        dict_with_eltype(kv, eltype(kv))
+        dict_with_eltype((K, V) -> OrderedDict{K, V}, kv, eltype(kv))
     catch e
         if isempty(methods(iterate, (typeof(kv),))) ||
             !all(x->isa(x, Union{Tuple,Pair}), kv)
@@ -75,10 +75,6 @@ function OrderedDict(kv)
         end
     end
 end
-
-dict_with_eltype(kv, ::Type{Tuple{K,V}}) where {K,V} = OrderedDict{K,V}(kv)
-dict_with_eltype(kv, ::Type{Pair{K,V}}) where {K,V} = OrderedDict{K,V}(kv)
-dict_with_eltype(kv, t) = OrderedDict{Any,Any}(kv)
 
 empty(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
 
