@@ -77,6 +77,7 @@ function OrderedDict(kv)
 end
 
 empty(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
+empty(d::OrderedDict, ::Type{K}, ::Type{V}) where {K, V} = OrderedDict{K, V}() 
 
 length(d::OrderedDict) = length(d.keys) - d.ndel
 isempty(d::OrderedDict) = (length(d) == 0)
