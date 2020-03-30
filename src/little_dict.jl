@@ -74,6 +74,7 @@ LittleDict(itr::T) where T = LittleDict{kvtype(eltype(T))...}(itr)
 # Avoid contention between the core constructor, and the list of elements
 LittleDict(itr1::Pair, itr2::Pair) = LittleDict(first.([itr1, itr2]), last.([itr1,itr2]))
 LittleDict(itr1::Pair) = LittleDict([first(itr1)], [last(itr1)])
+LittleDict{K, V}(itr::Pair) where {K, V} = LittleDict{K,V}(K[first(itr)], V[last(itr)])
 
 kvtype(::Any) = (Any, Any)
 kvtype(::Type{Union{}}) = (Any,Any)

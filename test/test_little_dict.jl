@@ -478,6 +478,18 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test merge(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
+
+    @testset "issue #27" begin
+        d = LittleDict{Symbol, Int}(:x=>1)
+        d1 = LittleDict(:x=>1)
+        d_wide = LittleDict{Symbol, Number}(:x=>1)
+        @test d == d1 == d_wide
+        @test d isa LittleDict{Symbol, Int}
+        @test d1 isa LittleDict{Symbol, Int}
+        @test d_wide isa LittleDict{Symbol, Number}
+
+        @test_throws MethodError LittleDict{Char,Char}(:x => 1)
+    end
 end # @testset LittleDict
 
 
