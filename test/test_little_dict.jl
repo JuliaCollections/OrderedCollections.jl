@@ -489,7 +489,6 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test d_wide isa LittleDict{Symbol, Number}
 
         @test_throws MethodError LittleDict{Char,Char}(:x => 1)
-        @test isequal(LittleDict{Int,Int}(), LittleDict{AbstractString,AbstractString}())
     end
 end # @testset LittleDict
 
