@@ -6,7 +6,7 @@ module OrderedCollections
                  push!, pop!, insert!,
                  union!, delete!, empty, sizehint!,
                  isequal, hash,
-                 map, reverse,
+                 map, map!, reverse,
                  first, last, eltype, getkey, values, sum,
                  merge, merge!, lt, Ordering, ForwardOrdering, Forward,
                  ReverseOrdering, Reverse, Lt,

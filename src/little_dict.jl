@@ -119,6 +119,15 @@ function Base.getkey(dd::LittleDict, key, default)
     end
 end
 
+function Base.map!(f, iter::Base.ValueIterator{<:LittleDict})
+    dict = iter.dict
+    vals = dict.vals
+    for i in 1:length(vals)
+        @inbounds vals[i] = f(vals[i])
+    end
+    return iter
+end
+
 struct NotFoundSentinel end  # Struct to mark not not found
 function Base.get(dd::LittleDict, key, default)
     @assert length(dd.keys) == length(dd.vals)
@@ -187,7 +196,7 @@ function add_new!(dd::UnfrozenLittleDict{K, V}, key, value) where {K, V}
     # then neither push can fail, so the dict length with remain in sync
     push!(dd.keys, kk)
     push!(dd.vals, vv)
-    
+
     return dd
 end
 
@@ -200,7 +209,7 @@ function Base.setindex!(dd::LittleDict{K,V, <:Any, <:Vector}, value, key) where 
     # setindex! it has huge code (26%), this does mean that if someone has messed
     # with the fields of the LittleDict directly, then the @inbounds could be invalid
     #@assert length(dd.keys) == length(dd.vals)
-    
+
     kk = convert(K, key)
     vv = convert(V, value)
     for ii in 1:length(dd.keys)
@@ -221,7 +230,7 @@ end
 
 function Base.pop!(dd::UnfrozenLittleDict, key)
     @assert length(dd.keys) == length(dd.vals)
-    
+
     for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
         if isequal(cand, key)
