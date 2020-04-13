@@ -19,6 +19,14 @@ or with up to around 50 elements if using a `LittleDict` backed by `Tuples`
 (see [`freeze`](@ref))
 However, this depends on exactly how long `isequal` and `hash` take,
 as well as on how many hash collisions occur etc.
+
+!!! note
+    When constructing a `LittleDict` it is faster to pass in the keys and 
+    values each as seperate lists. So if you have them seperately already,
+    do `LittleDict(ks, vs)` not `LittleDict(zip(ks, vs))`.
+    Further keys or value lists that are passed as `Tuple`s will not require any
+    copies to create the `LittleDict`, so `LittleDict(ks::Tuple, vs::Tuple)`
+    is the fastest constructor of all.
 """
 struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
     keys::KS
