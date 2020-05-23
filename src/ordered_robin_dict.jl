@@ -60,10 +60,8 @@ function OrderedRobinDict(kv)
     end
 end
 
-
-length(d::OrderedRobinDict) = length(d.keys)
+length(d::OrderedRobinDict) = d.count
 isempty(d::OrderedRobinDict) = (length(d) == 0)
-
 
 function empty!(h::OrderedRobinDict{K,V}) where {K, V}
     empty!(h.dict)
@@ -91,14 +89,24 @@ function setindex!(h::OrderedRobinDict{K, V}, v0, key0) where {K,V}
     end
     v = convert(V,  v0)
 
-    index = getkey(h.dict, key, -1)
+    index = get(h.dict, key, -2)
 
-    if index > 0
-        @inbounds h.vals[index] = v
+    if index < 0
+        _setindex!(h, v0, key0)
     else
-        _setindex!(h, v, key)
+        @assert haskey(h, key0)
+        @inbounds orig_v = h.vals[index]
+        (orig_v != v0) && (@inbounds h.vals[index] = v0)
     end
 
+    check_for_rehash(h) && rehash!(h)
+
+    return h
+end
+
+check_for_rehash(h) = false
+
+function rehash!(h::OrderedRobinDict)
     return h
 end
 
@@ -108,12 +116,12 @@ function get!(h::OrderedRobinDict{K,V}, key0, default) where {K,V}
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
 
-    index = getkey(h.dict, key, -1)
+    index = get(h.dict, key, -2)
 
     index > 0 && return h.vals[index]
 
     v = convert(V,  default)
-    _setindex!(h, v, key)
+    setindex!(h, v, key)
     return v
 end
 
@@ -123,42 +131,107 @@ function get!(default::Base.Callable, h::OrderedRobinDict{K,V}, key0) where {K,V
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
 
-    index = getkey(h.dict, key, -1)
+    index = get(h.dict, key, -2)
 
     index > 0 && return h.vals[index]
 
     v = convert(V,  default())
-    if h.dirty  # calling default could have dirtied h
-        index = ht_keyindex2(h, key)
-    end
+
     if index > 0
         h.keys[index] = key
         h.vals[index] = v
     else
-        _setindex!(h, v, key, -index)
+        setindex!(h, v, key)
     end
     return v
 end
 
 function getindex(h::OrderedRobinDict{K,V}, key) where {K,V}
-    index = getkey(h.dict, key, -1)
-    return (index<0) ? throw(KeyError(key)) : h.vals[index]::V
+    index = get(h.dict, key, -1)
+    return (index < 0) ? throw(KeyError(key)) : h.vals[index]::V
 end
 
 function get(h::OrderedRobinDict{K,V}, key, default) where {K,V}
-    index = getkey(h.dict, key, -1)
-    return (index<0) ? default : h.vals[index]::V
+    index = get(h.dict, key, -1)
+    return (index < 0) ? default : h.vals[index]::V
 end
 
 function get(default::Base.Callable, h::OrderedRobinDict{K,V}, key) where {K,V}
-    index = getkey(h.dict, key, -1)
-    return (index<0) ? default() : h.vals[index]::V
+    index = get(h.dict, key, -1)
+    return (index < 0) ? default() : h.vals[index]::V
 end
 
-haskey(h::OrderedRobinDict, key) = (getkey(h.dict, key, -1) >= 0)
-in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedRobinDict{K}} = (getkey(h.dict, key, -1) >= 0)
+haskey(h::OrderedRobinDict, key) = (get(h.dict, key, -2) > 0)
+in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedRobinDict{K}} = (get(h.dict, key, -1) >= 0)
 
 function getkey(h::OrderedRobinDict{K,V}, key, default) where {K,V}
-    index = getkey(h.dict, key, -1)
-    return (index<0) ? default : h.keys[index]::K
+    index = get(h.dict, key, -1)
+    return (index < 0) ? default : h.keys[index]::K
+end
+
+@propagate_inbounds isslotfilled(h::OrderedRobinDict, index) = (h.dict[h.keys[index]] == index)
+
+function _pop!(h::OrderedRobinDict, index)
+    @inbounds val = h.vals[index]
+    _delete!(h, index)
+    return val
+end
+
+function pop!(h::OrderedRobinDict)
+    check_for_rehash(h) && rehash!(h)
+    index = length(h.keys)
+    @inbounds while (index > 0)
+        isslotfilled(h, index) && break
+        index -= 1
+    end
+    index == 0 && rehash!(h)
+    @inbounds key = h.keys[index]
+    return key => _pop!(h, index)
+end
+
+function pop!(h::OrderedRobinDict, key)
+    index = get(h, key, -1)
+    isslotfilled(h, index) ? _pop!(h, index) : throw(KeyError(key))
+end
+
+function pop!(h::OrderedRobinDict, key, default)
+    index = get(h, key, -1)
+    isslotfilled(h, index) ? _pop(h, index) : default
+end
+
+function _delete!(h::OrderedRobinDict, index)
+    @inbounds h.dict[h.keys[index]] = -1
+    h.count -= 1
+    check_for_rehash(h) ? rehash!(h) : h
+end
+
+function get_first_filled_index(h::OrderedRobinDict)
+    index = 1
+    while (true)
+        isslotfilled(h, index) && return index
+        index += 1
+    end
+end
+
+function get_next_filled_index(h::OrderedRobinDict, index)
+    # get the next filled slot, including index and beyond
+    while (index <= length(h.keys))
+        isslotfilled(h, index) && return index
+        index += 1
+    end
+    return -1
+end
+
+function iterate(h::OrderedRobinDict)
+    isempty(h) && return nothing
+    check_for_rehash(h) && rehash!(h)
+    index = get_first_filled_index(h)
+    return (Pair(h.keys[index], h.vals[index]), index+1)
+end
+
+function iterate(h::OrderedRobinDict, i)
+    length(h.keys) < i && return nothing
+    index = get_next_filled_index(h, i) 
+    (index < 0) && return nothing
+    return (Pair(h.keys[index], h.vals[index]), index+1)
 end
