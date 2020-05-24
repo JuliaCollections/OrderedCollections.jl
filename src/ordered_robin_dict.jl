@@ -232,13 +232,13 @@ function pop!(h::OrderedRobinDict)
 end
 
 function pop!(h::OrderedRobinDict, key)
-    index = get(h, key, -1)
-    isslotfilled(h, index) ? _pop!(h, index) : throw(KeyError(key))
+    index = get(h.dict, key, -1)
+    (index > 0) ? _pop!(h, index) : throw(KeyError(key))
 end
 
 function pop!(h::OrderedRobinDict, key, default)
-    index = get(h, key, -1)
-    isslotfilled(h, index) ? _pop(h, index) : default
+    index = get(h.dict, key, -1)
+    (index > 0) ? _pop(h, index) : default
 end
 
 function _delete!(h::OrderedRobinDict, index)
