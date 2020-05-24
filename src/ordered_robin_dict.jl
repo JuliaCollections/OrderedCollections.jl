@@ -2,9 +2,8 @@ using DataStructures: RobinDict;
 
 import Base: setindex!, sizehint!, empty!, isempty, length, copy, empty,
              getindex, getkey, haskey, iterate, @propagate_inbounds,
-             pop!, delete!, get, get!, isbitstype, in,
+             pop!, delete!, get, get!, isbitstype, in, merge,
              dict_with_eltype, KeySet, Callable, _tablesz, filter!
-
 
 const ALLOWABLE_USELESS_GROWTH = 0.25
 
@@ -32,7 +31,7 @@ mutable struct OrderedRobinDict{K,V} <: AbstractDict{K,V}
     OrderedRobinDict{K,V}(p::Pair) where {K,V} = setindex!(OrderedRobinDict{K,V}(), p.second, p.first)
     function OrderedRobinDict{K,V}(ps::Pair...) where V where K
         h = OrderedRobinDict{K,V}()
-        # sizehint!(h, length(ps))
+        sizehint!(h, length(ps))
         for p in ps
             h[p.first] = p.second
         end
@@ -139,6 +138,18 @@ function rehash!(h::OrderedRobinDict{K, V}) where {K, V}
         h.dict[k] = idx
     end
     return h
+end
+
+function sizehint!(d::OrderedRobinDict, newsz)
+    oldsz = length(d)
+    # grow at least 25%
+    if newsz < (oldsz*5)>>2
+        return d
+    end
+    sizehint!(d.keys, newsz)
+    sizehint!(d.vals, newsz)
+    sizehint!(d.dict, newsz)
+    return d
 end
 
 function get!(h::OrderedRobinDict{K,V}, key0, default) where {K,V}
@@ -265,4 +276,25 @@ function iterate(h::OrderedRobinDict, i)
     index = get_next_filled_index(h, i) 
     (index < 0) && return nothing
     return (Pair(h.keys[index], h.vals[index]), index+1)
+end
+
+filter!(f, d::OrderedRobinDict) = Base.filter_in_one_pass!(f, d)
+
+function _merge_kvtypes(d, others...)
+    K, V = keytype(d), valtype(d)
+    for other in others
+        K = promote_type(K, keytype(other))
+        V = promote_type(V, valtype(other))
+    end
+    return (K,V)
+end
+
+function merge(d::OrderedRobinDict, others::AbstractDict...)
+    K,V = _merge_kvtypes(d, others...)
+    merge!(OrderedRobinDict{K,V}(), d, others...)
+end
+
+function merge(combine::Function, d::OrderedRobinDict, others::AbstractDict...)
+    K,V = _merge_kvtypes(d, others...)
+    merge!(combine, OrderedRobinDict{K,V}(), d, others...)
 end
