@@ -2,8 +2,11 @@ using DataStructures: RobinDict;
 
 import Base: setindex!, sizehint!, empty!, isempty, length, copy, empty,
              getindex, getkey, haskey, iterate, @propagate_inbounds,
-             pop!, delete!, get, get!, isbitstype, in, hashindex, isbitsunion,
-             isiterable, dict_with_eltype, KeySet, Callable, _tablesz, filter!
+             pop!, delete!, get, get!, isbitstype, in,
+             dict_with_eltype, KeySet, Callable, _tablesz, filter!
+
+
+const ALLOWABLE_USELESS_GROWTH = 0.25
 
 mutable struct OrderedRobinDict{K,V} <: AbstractDict{K,V}
     dict::RobinDict{K, Int32} 
@@ -104,9 +107,37 @@ function setindex!(h::OrderedRobinDict{K, V}, v0, key0) where {K,V}
     return h
 end
 
-check_for_rehash(h) = false
+# rehash when there are ALLOWABLE_USELESS_GROWTH %
+# tombstones, or non-mirrored entries in the dictionary
+function check_for_rehash(h::OrderedRobinDict)
+    keysl = length(h.keys)
+    dictl = length(h)
+    return (keysl > (1 + ALLOWABLE_USELESS_GROWTH)*dictl)
+end
 
-function rehash!(h::OrderedRobinDict)
+function rehash!(h::OrderedRobinDict{K, V}) where {K, V}
+    keys = h.keys
+    vals = h.vals
+    newk = Vector{K}()
+    newv = Vector{V}()
+    hk, hv = newk, newv
+    
+    for (idx, (k, v)) in enumerate(zip(keys, vals))
+        if get(h.dict, k, -1) == idx
+            ccall(:jl_array_grow_end, Cvoid, (Any, UInt), hk, 1)
+            nk = length(hk)
+            @inbounds hk[nk] = k
+            ccall(:jl_array_grow_end, Cvoid, (Any, UInt), hv, 1)
+            @inbounds hv[nk] = v
+        end
+    end
+    
+    h.keys = newk
+    h.vals = newv
+    
+    for (idx, k) in enumerate(h.keys)
+        h.dict[k] = idx
+    end
     return h
 end
 
