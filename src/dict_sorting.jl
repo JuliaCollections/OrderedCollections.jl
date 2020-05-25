@@ -29,3 +29,12 @@ function sort(d::LittleDict; byvalue::Bool=false, args...)
     return LittleDict(d.keys[p], d.vals[p])
 end
 
+function sort(d::OrderedRobinDict; byvalue::Bool=false, args...)
+    rehash!(d)
+    if byvalue
+        p = sortperm(d.vals; args...)
+    else
+        p = sortperm(d.keys; args...)
+    end
+    return LittleDict(d.keys[p], d.vals[p])
+end

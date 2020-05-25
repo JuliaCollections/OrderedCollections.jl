@@ -2,7 +2,7 @@ using DataStructures: RobinDict;
 
 import Base: setindex!, sizehint!, empty!, isempty, length, copy, empty,
              getindex, getkey, haskey, iterate, @propagate_inbounds,
-             pop!, delete!, get, get!, isbitstype, in, merge,
+             pop!, delete!, get, get!, isbitstype, in, merge, isiterable,
              dict_with_eltype, KeySet, Callable, _tablesz, filter!
 
 const ALLOWABLE_USELESS_GROWTH = 0.25
@@ -61,6 +61,8 @@ function OrderedRobinDict(kv)
         end
     end
 end
+
+empty(d::OrderedRobinDict{K,V}) where {K,V} = OrderedRobinDict{K,V}()
 
 length(d::OrderedRobinDict) = d.count
 isempty(d::OrderedRobinDict) = (length(d) == 0)
@@ -204,7 +206,7 @@ function get(default::Base.Callable, h::OrderedRobinDict{K,V}, key) where {K,V}
 end
 
 haskey(h::OrderedRobinDict, key) = (get(h.dict, key, -2) > 0)
-in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedRobinDict{K}} = (get(h.dict, key, -1) >= 0)
+in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedRobinDict{K}} = (get(v.dict, key, -1) >= 0)
 
 function getkey(h::OrderedRobinDict{K,V}, key, default) where {K,V}
     index = get(h.dict, key, -1)
@@ -239,6 +241,11 @@ end
 function pop!(h::OrderedRobinDict, key, default)
     index = get(h.dict, key, -1)
     (index > 0) ? _pop(h, index) : default
+end
+
+function delete!(h::OrderedRobinDict, key)
+    pop!(h, key)
+    return h
 end
 
 function _delete!(h::OrderedRobinDict, index)
@@ -298,3 +305,5 @@ function merge(combine::Function, d::OrderedRobinDict, others::AbstractDict...)
     K,V = _merge_kvtypes(d, others...)
     merge!(combine, OrderedRobinDict{K,V}(), d, others...)
 end
+
+isordered(::Type{T}) where {T <: OrderedRobinDict} = true

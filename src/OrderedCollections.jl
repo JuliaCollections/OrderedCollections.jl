@@ -23,6 +23,7 @@ module OrderedCollections
     include("dict_support.jl")
     include("ordered_dict.jl")
     include("little_dict.jl")
+    include("ordered_robin_dict.jl")
     include("ordered_set.jl")
     include("dict_sorting.jl")
 

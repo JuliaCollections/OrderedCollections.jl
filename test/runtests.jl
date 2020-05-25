@@ -7,6 +7,7 @@ using Random, Serialization
 tests = [
          "little_dict",
          "ordered_dict",
+         "ordered_robin_dict",
          "ordered_set",
         ]
 
