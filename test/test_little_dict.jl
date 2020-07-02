@@ -86,7 +86,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test isempty(empty(d))
         empty!(d)
         @test isempty(d)
-        @test delete!(d, "foo") isa Any  # Make sure this does't throw an error
+        @test delete!(d, "foo") == empty(d)  # Make sure this does't throw an error
 
         # access, modification
         for c in 'a':'z'
