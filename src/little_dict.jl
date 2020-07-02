@@ -248,8 +248,6 @@ function Base.pop!(dd::UnfrozenLittleDict, key)
             return val
         end
     end
-    # Not found, throw error
-    throw(KeyError(key))
 end
 
 function Base.delete!(dd::UnfrozenLittleDict, key)
