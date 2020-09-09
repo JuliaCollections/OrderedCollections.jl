@@ -49,14 +49,14 @@ copy(d::OrderedDict) = OrderedDict(d)
 # OrderedDict{K,V}(kv::Tuple{Vararg{Tuple{K,V}}})     = OrderedDict{K,V}(kv)
 # OrderedDict{K  }(kv::Tuple{Vararg{Tuple{K,Any}}})   = OrderedDict{K,Any}(kv)
 # OrderedDict{V  }(kv::Tuple{Vararg{Tuple{Any,V}}})   = OrderedDict{Any,V}(kv)
-OrderedDict(kv::Tuple{Vararg{Pair{K,V}}}) where {K,V}       = OrderedDict{K,V}(kv)
+OrderedDict(kv::Tuple{Vararg{Pair{K,V}}}) where {K,V}  = OrderedDict{K,V}(kv)
 
 OrderedDict(kv::AbstractArray{Tuple{K,V}}) where {K,V} = OrderedDict{K,V}(kv)
 OrderedDict(kv::AbstractArray{Pair{K,V}}) where {K,V}  = OrderedDict{K,V}(kv)
-OrderedDict(kv::AbstractDict{K,V}) where {K,V}          = OrderedDict{K,V}(kv)
+OrderedDict(kv::AbstractDict{K,V}) where {K,V}         = OrderedDict{K,V}(kv)
 
-OrderedDict(ps::Pair{K,V}...) where {K,V}          = OrderedDict{K,V}(ps)
-OrderedDict(ps::Pair...)                           = OrderedDict(ps)
+OrderedDict(ps::Pair{K,V}...) where {K,V} = OrderedDict{K,V}(ps)
+OrderedDict(ps::Pair...)                  = OrderedDict(ps)
 
 function OrderedDict(kv)
     try
@@ -72,7 +72,7 @@ function OrderedDict(kv)
 end
 
 empty(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
-empty(d::OrderedDict, ::Type{K}, ::Type{V}) where {K, V} = OrderedDict{K, V}() 
+empty(d::OrderedDict, ::Type{K}, ::Type{V}) where {K, V} = OrderedDict{K, V}()
 
 length(d::OrderedDict) = length(d.keys) - d.ndel
 isempty(d::OrderedDict) = (length(d) == 0)

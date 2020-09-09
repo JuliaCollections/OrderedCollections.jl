@@ -375,10 +375,10 @@ using OrderedCollections, Test
 
     @testset "Issue #148" begin
         d148 = OrderedDict(
-                    :gps => [],
-                    :direction => 1:8,
-                    :weather => 1:10
-            )
+            :gps => [],
+            :direction => 1:8,
+            :weather => 1:10
+        )
 
         d148_2 = OrderedDict(
             :time => 1:10,
@@ -394,7 +394,7 @@ using OrderedCollections, Test
         @test filter(p->first(p) > 1, OrderedDict(1=>2, 3=>4)) isa OrderedDict
     end
 
-    @testset "Issue #30" begin 
+    @testset "Issue #30" begin
         d = OrderedDict(:a=>1, :b=>2)
         d1 = OrderedDict(k=>v for (k,v) in d)
         @test keytype(d1) == keytype(d)
@@ -417,12 +417,12 @@ using OrderedCollections, Test
         @test merge(+, OrderedDict(:a=>1, :b=>2), OrderedDict(:b=>7, :c=>4)) == OrderedDict(:a=>1, :b=>9, :c=>4)
         @test merge(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
     end
-   
-     @testset "map!(f, values(OrderedDict))" begin
-            testdict = OrderedDict(:a=>1, :b=>2)
-            map!(v->v-1, values(testdict))
-            @test testdict[:a] == 0
-            @test testdict[:b] == 1
+
+    @testset "map!(f, values(OrderedDict))" begin
+        testdict = OrderedDict(:a=>1, :b=>2)
+        map!(v->v-1, values(testdict))
+        @test testdict[:a] == 0
+        @test testdict[:b] == 1
     end
 
     @testset "Issue #47" begin
