@@ -46,22 +46,17 @@ copy(d::OrderedDict) = OrderedDict(d)
 
 
 # TODO: this can probably be simplified using `eltype` as a THT (Tim Holy trait)
-# OrderedDict{K,V}(kv::Tuple{Vararg{Tuple{K,V}}})          = OrderedDict{K,V}(kv)
-# OrderedDict{K  }(kv::Tuple{Vararg{Tuple{K,Any}}})        = OrderedDict{K,Any}(kv)
-# OrderedDict{V  }(kv::Tuple{Vararg{Tuple{Any,V}}})        = OrderedDict{Any,V}(kv)
+# OrderedDict{K,V}(kv::Tuple{Vararg{Tuple{K,V}}})     = OrderedDict{K,V}(kv)
+# OrderedDict{K  }(kv::Tuple{Vararg{Tuple{K,Any}}})   = OrderedDict{K,Any}(kv)
+# OrderedDict{V  }(kv::Tuple{Vararg{Tuple{Any,V}}})   = OrderedDict{Any,V}(kv)
 OrderedDict(kv::Tuple{Vararg{Pair{K,V}}}) where {K,V}       = OrderedDict{K,V}(kv)
-OrderedDict(kv::Tuple{Vararg{Pair{K}}}) where {K}           = OrderedDict{K,Any}(kv)
-OrderedDict(kv::Tuple{Vararg{Pair{K,V} where K}}) where {V} = OrderedDict{Any,V}(kv)
-OrderedDict(kv::Tuple{Vararg{Pair}})                        = OrderedDict{Any,Any}(kv)
 
 OrderedDict(kv::AbstractArray{Tuple{K,V}}) where {K,V} = OrderedDict{K,V}(kv)
 OrderedDict(kv::AbstractArray{Pair{K,V}}) where {K,V}  = OrderedDict{K,V}(kv)
 OrderedDict(kv::AbstractDict{K,V}) where {K,V}          = OrderedDict{K,V}(kv)
 
 OrderedDict(ps::Pair{K,V}...) where {K,V}          = OrderedDict{K,V}(ps)
-OrderedDict(ps::Pair{K}...,) where {K}             = OrderedDict{K,Any}(ps)
-OrderedDict(ps::(Pair{K,V} where K)...,) where {V} = OrderedDict{Any,V}(ps)
-OrderedDict(ps::Pair...)                           = OrderedDict{Any,Any}(ps)
+OrderedDict(ps::Pair...)                           = OrderedDict(ps)
 
 function OrderedDict(kv)
     try

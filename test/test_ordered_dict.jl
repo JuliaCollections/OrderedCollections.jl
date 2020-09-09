@@ -425,4 +425,14 @@ using OrderedCollections, Test
             @test testdict[:b] == 1
     end
 
+    @testset "Issue #47" begin
+        @test eltype(OrderedDict(String => :string, SubString => :substring)) == Pair{Type,Symbol}
+        @test eltype(OrderedDict(:string => String, :substring => SubString)) == Pair{Symbol,Type}
+        @test eltype(OrderedDict(String => String, SubString => SubString)) == Pair{Type,Type}
+
+        @test eltype(OrderedDict(tuple(String => :string, SubString => :substring))) == Pair{Type,Symbol}
+        @test eltype(OrderedDict(tuple(:string => String, :substring => SubString))) == Pair{Symbol,Type}
+        @test eltype(OrderedDict(tuple(String => String, SubString => SubString))) == Pair{Type,Type}
+    end
+
 end # @testset OrderedDict
