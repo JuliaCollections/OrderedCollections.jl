@@ -3,7 +3,7 @@ const StoreType = Union{<:Tuple, <:Vector}
 """
     LittleDict(keys, vals)<:AbstractDict
 
-A ordered dictionary type for small numbers of keys.
+An ordered dictionary type for small numbers of keys.
 Rather than using `hash` or some other sophisicated measure
 to store the vals in a clever arrangement,
 it just keeps everything in a pair of lists.
