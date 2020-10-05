@@ -250,6 +250,12 @@ function Base.pop!(dd::UnfrozenLittleDict, key)
     end
 end
 
+function Base.pop!(dd::UnfrozenLittleDict, key, default)
+    ret = pop!(dd, key)
+
+    return ret isa Nothing ? default : ret
+end
+
 function Base.delete!(dd::UnfrozenLittleDict, key)
     pop!(dd, key)
     return dd

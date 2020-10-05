@@ -137,6 +137,13 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test od60[14] == 15
     end
 
+    @testset "pop! default" begin
+        ld = LittleDict()
+        expected = "default"
+        ret = pop!(ld, "DNE", expected)
+
+        @test ret == expected
+    end
 
     ##############################
     # Copied and modified from Base/test/dict.jl
