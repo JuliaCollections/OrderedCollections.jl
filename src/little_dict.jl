@@ -248,16 +248,31 @@ function Base.pop!(dd::UnfrozenLittleDict, key)
             return val
         end
     end
+
+    throw(KeyError(key))
 end
 
 function Base.pop!(dd::UnfrozenLittleDict, key, default)
-    ret = pop!(dd, key)
+    try
+        return pop!(dd, key)
+    catch e
+        if !(e isa KeyError)
+            retthrow(e)
+        end
+    end
 
-    return ret isa Nothing ? default : ret
+    return default
 end
 
 function Base.delete!(dd::UnfrozenLittleDict, key)
-    pop!(dd, key)
+    try
+        pop!(dd, key)
+    catch e
+        if !(e isa KeyError)
+            rethrow(e)
+        end
+    end
+
     return dd
 end
 
