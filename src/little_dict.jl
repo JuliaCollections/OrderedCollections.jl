@@ -92,9 +92,6 @@ kvtype(::Type{Pair{<:Any,V}}) where {V} = (Any,V)
 kvtype(::Type{Pair{K,<:Any}}) where {K} = (K,Any)
 
 kvtype(::Type{Tuple{K,V}}) where {K,V} = (K,V)
-kvtype(::Type{Tuple{<:Any,V}}) where {V} = (Any,V)
-kvtype(::Type{Tuple{K,<:Any}}) where {K} = (K,Any)
-
 
 """
     freeze(dd::AbstractDict)
