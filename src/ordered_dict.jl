@@ -311,7 +311,7 @@ function _setindex!(h::OrderedDict, v, key, index)
     sz = length(h.slots)
     cnt = nk - h.ndel
     # Rehash now if necessary
-    if h.ndel >= ((3*nk)>>2) || cnt*3 > sz*2
+    if h.ndel >= ((3*sz)>>2) || cnt*3 > sz*2
         # > 3/4 deleted or > 2/3 full
         rehash!(h, cnt > 64000 ? cnt*2 : cnt*4)
     end
