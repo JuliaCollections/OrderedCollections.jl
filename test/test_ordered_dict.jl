@@ -435,4 +435,19 @@ using OrderedCollections, Test
         @test eltype(OrderedDict(tuple(String => String, SubString => SubString))) == Pair{Type,Type}
     end
 
+    @testset "Issue #71" begin
+        od = OrderedDict(Dict(i=>0 for i=1:158))
+        sort!(od)
+        @test od[158] == 0
+    end
+
+    @testset "Issue #71b" begin
+        # This is actually a simplified version of #60, which was triggered while fixing #71
+        # It doesn't actually fail on previous versions of OrderedCollections
+        od = OrderedDict{Int,Int}(13=>13)
+        delete!( od, 13 )
+        od[14]=14
+        @test od[14] == 14
+    end
+
 end # @testset OrderedDict
