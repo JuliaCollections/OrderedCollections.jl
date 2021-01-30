@@ -1,3 +1,7 @@
+# These can be changed, to trade off better performance for space
+const global maxallowedprobe = isdefined(Base, :maxallowedprobe) ? Base.maxallowedprobe : 16
+const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobeshift : 6
+
 # OrderedDict
 
 """
@@ -11,10 +15,11 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     keys::Array{K,1}
     vals::Array{V,1}
     ndel::Int
+    maxprobe::Int
     dirty::Bool
 
     function OrderedDict{K,V}() where {K,V}
-        new{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, false)
+        new{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
     end
     function OrderedDict{K,V}(kv) where {K,V}
         h = OrderedDict{K,V}()
@@ -37,7 +42,7 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
             rehash!(d)
         end
         @assert d.ndel == 0
-        new{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0)
+        new{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
     end
 end
 OrderedDict() = OrderedDict{Any,Any}()
@@ -104,6 +109,10 @@ function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
 end
 convert(::Type{OrderedDict{K,V}},d::OrderedDict{K,V}) where {K,V} = d
 
+isslotempty(slot_value::Integer) = slot_value == 0
+isslotfilled(slot_value::Integer) = slot_value > 0
+isslotmissing(slot_value::Integer) = slot_value < 0
+
 function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
     olds = h.slots
     keys = h.keys
@@ -122,6 +131,7 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
     end
 
     slots = zeros(Int32, newsz)
+    maxprobe = 0
 
     if h.ndel > 0
         ndel0 = h.ndel
@@ -139,22 +149,24 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
                 isdeleted = false
                 if !ptrs
                     iter = 0
-                    maxprobe = max(16, sz>>6)
                     index = (hashk & (sz-1)) + 1
-                    while iter <= maxprobe
+                    while iter <= h.maxprobe
                         si = olds[index]
-                        #si == 0 && break  # shouldn't happen
                         si == from && break
-                        si == -from && (isdeleted=true; break)
+                        # if we find si == 0, then the key was deleted and it's slot was reused/overwritten
+                        (si == -from || si == 0) && (isdeleted = true; break)
                         index = (index & (sz-1)) + 1
                         iter += 1
                     end
+                    iter > h.maxprobe && (isdeleted = true)  # Another case where the slot was reused/overwritten
                 end
                 if !isdeleted
-                    index = (hashk & (newsz-1)) + 1
+                    index0 = index = (hashk & (newsz-1)) + 1
                     while slots[index] != 0
                         index = (index & (newsz-1)) + 1
                     end
+                    probe = (index - index0) & (newsz-1)
+                    probe > maxprobe && (maxprobe = probe)
                     slots[index] = to
                     newkeys[to] = k
                     newvals[to] = vals[from]
@@ -172,10 +184,12 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
     else
         @inbounds for i = 1:count0
             k = keys[i]
-            index = hashindex(k, newsz)
+            index0 = index = hashindex(k, newsz)
             while slots[index] != 0
                 index = (index & (newsz-1)) + 1
             end
+            probe = (index - index0) & (newsz-1)
+            probe > maxprobe && (maxprobe = probe)
             slots[index] = i
             if h.ndel > 0
                 # if items are removed by finalizers, retry
@@ -185,6 +199,7 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
     end
 
     h.slots = slots
+    h.maxprobe = maxprobe
     return h
 end
 
@@ -216,14 +231,14 @@ function ht_keyindex(h::OrderedDict{K,V}, key, direct) where {K,V}
     slots = h.slots
     sz = length(slots)
     iter = 0
-    maxprobe = max(16, sz>>6)
+    maxprobe = h.maxprobe
     index = hashindex(key, sz)
     keys = h.keys
 
     @inbounds while iter <= maxprobe
         si = slots[index]
-        si == 0 && break
-        if si > 0 && isequal(key, keys[si])
+        isslotempty(si) && break
+        if isslotfilled(si) && isequal(key, keys[si])
             return ifelse(direct, oftype(index, si), index)
         end
 
@@ -241,18 +256,37 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
     slots = h.slots
     sz = length(slots)
     iter = 0
-    maxprobe = max(16, sz>>6)
+    maxprobe = h.maxprobe
     index = hashindex(key, sz)
     keys = h.keys
+    avail = 0
 
     @inbounds while iter <= maxprobe
         si = slots[index]
-        if si == 0
+        if isslotempty(si)
+            avail < 0 && return avail
             return -index
-        elseif si > 0 && isequal(key, keys[si])
+        end
+
+        if isslotmissing(si)
+            avail == 0 && (avail = -index)
+        elseif isequal(key, keys[si])
             return oftype(index, si)
         end
 
+        index = (index & (sz-1)) + 1
+        iter += 1
+    end
+
+    avail < 0 && return avail
+
+    # If key is not present, may need to keep searching to find slot
+    maxallowed = max(maxallowedprobe, sz>>maxprobeshift)
+    @inbounds while iter < maxallowed
+        if !isslotfilled(slots[index])
+            h.maxprobe = iter
+            return -index
+        end
         index = (index & (sz-1)) + 1
         iter += 1
     end
