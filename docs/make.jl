@@ -3,7 +3,9 @@ using OrderedCollections
 
 
 makedocs(
-    format = :html,
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true"
+    ),
     sitename = "OrderedCollections.jl",
     pages = [
         "index.md",
@@ -13,9 +15,7 @@ makedocs(
 
 deploydocs(
     repo = "github.com/JuliaCollections/OrderedCollections.jl.git",
-    julia  = "0.7",
-    latest = "master",
     target = "build",
-    deps = nothing,  # we use the `format = :html`, without `mkdocs`
-    make = nothing,  # we use the `format = :html`, without `mkdocs`
+    deps = nothing,
+    make = nothing,
 )
