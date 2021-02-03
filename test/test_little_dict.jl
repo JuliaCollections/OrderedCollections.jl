@@ -509,6 +509,9 @@ end # @testset LittleDict
         @test frozen isa LittleDict{Int, String, <:Tuple, <:Tuple}
         @test frozen == base_dict
         @test frozen === base_dict
+        
+        unfrozen = thaw(frozen)
+        @test unfrozen == nonfrozen
     end
 
     @testset "get" begin
