@@ -95,14 +95,26 @@ kvtype(::Type{Tuple{K,V}}) where {K,V} = (K,V)
 
 """
     freeze(dd::AbstractDict)
-Render an dictionary immutable by converting it to a `Tuple` backed
-`LittleDict`.
+
+Render an dictionary immutable by converting it to a `Tuple` backed `LittleDict`.
 The `Tuple` backed `LittleDict` is faster than the `Vector` backed `LittleDict`,
-particularly when the keys are all concretely typed.
+particularly when the keys are all concretely typed. (see [`thaw`](@ref))
 """
 function freeze(dd::AbstractDict)
     ks = Tuple(keys(dd))
     vs = Tuple(values(dd))
+    return LittleDict(ks, vs)
+end
+
+"""
+    thaw(dd::AbstractDict)
+
+Render a frozen dictionary mutable by converting it to a `Vector` backed `LittleDict`.
+(see [`freeze`](@ref))
+"""
+function thaw(dd::AbstractDict)
+    ks = [keys(dd)...]
+    vs = [values(dd)...]
     return LittleDict(ks, vs)
 end
 
