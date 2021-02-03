@@ -66,4 +66,5 @@ Indeed the preceeding example (with the io redirected to `devnull`), runs 4x fas
 ```@docs
 LittleDict
 freeze
+thaw
 ```
