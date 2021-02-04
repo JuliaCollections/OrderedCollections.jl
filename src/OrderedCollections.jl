@@ -18,7 +18,7 @@ module OrderedCollections
                  copymutable, emptymutable, dict_with_eltype
 
     export OrderedDict, OrderedSet, LittleDict
-    export freeze
+    export freeze, thaw
 
     include("dict_support.jl")
     include("ordered_dict.jl")
