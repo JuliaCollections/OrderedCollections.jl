@@ -411,6 +411,13 @@ function pop!(h::OrderedDict)
     return key => _pop!(h, index)
 end
 
+function popfirst!(h::OrderedDict)
+    h.ndel > 0 && rehash!(h)
+    key = h.keys[1]
+    index = ht_keyindex(h, key, false)
+    key => _pop!(h, index)
+end
+
 function pop!(h::OrderedDict, key)
     index = ht_keyindex(h, key, false)
     index > 0 ? _pop!(h, index) : throw(KeyError(key))
