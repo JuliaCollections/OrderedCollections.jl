@@ -3,7 +3,7 @@ module OrderedCollections
     import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
                  show, dump, empty!, getindex, setindex!, get, get!,
                  in, haskey, keys, merge, copy, cat,
-                 push!, pop!, insert!,
+                 push!, pop!, popfirst!, insert!,
                  union!, delete!, empty, sizehint!,
                  isequal, hash,
                  map, map!, reverse,

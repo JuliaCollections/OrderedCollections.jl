@@ -450,4 +450,11 @@ using OrderedCollections, Test
         @test od[14] == 14
     end
 
+    @testset "ordered access" begin
+        od = OrderedDict(:a=>1, :b=>2, :c=>3)  
+        @test popfirst!(od) == (:a => 1)
+        @test :a ∉ keys(od)
+        @test pop!(od) == (:c => 3)
+        @test :c ∉ keys(od)
+    end
 end # @testset OrderedDict

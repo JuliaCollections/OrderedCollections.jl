@@ -47,6 +47,7 @@ function iterate(s::OrderedSet, i)
 end
 
 pop!(s::OrderedSet) = pop!(s.dict)[1]
+popfirst!(s::OrderedSet) = popfirst!(s.dict)[1]
 
 
 
