@@ -410,7 +410,33 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
     @testset "Test merging" begin
         a = LittleDict("foo"  => 0.0, "bar" => 42.0)
         b = LittleDict("フー" => 17, "バー" => 4711)
-        @test isa(merge(a, b), LittleDict{String,Float64})
+        result = merge(a, b)
+        @test isa(result, LittleDict{String,Float64})
+
+        expected = LittleDict("foo"  => 0.0, "bar" => 42.0, "フー" => 17, "バー" => 4711)
+        @test result == expected
+
+        c = LittleDict("a" => 1, "b" => 2, "c" => 3)
+        result = merge(a, b, c)
+        @test isa(result, LittleDict{String,Float64})
+
+        expected = LittleDict(
+            "foo" => 0.0, "bar" => 42.0,
+            "フー" => 17, "バー" => 4711,
+            "a" => 1, "b" => 2, "c" => 3,
+        )
+        @test result == expected
+
+        c = LittleDict("a" => 1, "b" => 2, "foo" => 3)
+        result = merge(a, b, c)
+        @test isa(result, LittleDict{String,Float64})
+
+        expected = LittleDict(
+            "foo" => 3, "bar" => 42.0,
+            "フー" => 17, "バー" => 4711,
+            "a" => 1, "b" => 2,
+        )
+        @test result == expected
     end
 
     @testset "Issue #9295" begin
@@ -526,7 +552,7 @@ end # @testset LittleDict
         @test_throws MethodError fd[30] = "cc"
         @test_throws MethodError fd[-1] = "dd"
     end
-    
+
     @testset "map!(f, values(LittleDict))" begin
         testdict = LittleDict(:a=>1, :b=>2)
         map!(v->v-1, values(testdict))

@@ -21,7 +21,7 @@ However, this depends on exactly how long `isequal` and `hash` take,
 as well as on how many hash collisions occur etc.
 
 !!! note
-    When constructing a `LittleDict` it is faster to pass in the keys and 
+    When constructing a `LittleDict` it is faster to pass in the keys and
     values each as seperate lists. So if you have them seperately already,
     do `LittleDict(ks, vs)` not `LittleDict(zip(ks, vs))`.
     Further keys or value lists that are passed as `Tuple`s will not require any
@@ -41,7 +41,7 @@ struct LittleDict{K,V,KS<:StoreType,VS<:StoreType} <: AbstractDict{K, V}
         end
         K<:eltype(KS) || ArgumentError("Invalid store type $KS, for key type $K")
         V<:eltype(VS) || ArgumentError("Invalid store type $VS, for value type $K")
-        
+
         return new(keys,vals)
     end
 end
@@ -156,8 +156,8 @@ function Base.iterate(dd::LittleDict, ii=1)
     return (dd.keys[ii] => dd.vals[ii], ii+1)
 end
 
-function merge(d1::LittleDict, d2::AbstractDict)
-    return merge((x,y)->y, d1, d2)
+function merge(d1::LittleDict, others::AbstractDict...)
+    return merge((x,y)->y, d1, others...)
 end
 
 function merge(
