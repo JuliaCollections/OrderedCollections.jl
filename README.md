@@ -1,7 +1,8 @@
 [![Travis Build Status](https://travis-ci.org/JuliaCollections/OrderedCollections.jl.svg?branch=master)](https://travis-ci.org/JuliaCollections/OrderedCollections.jl)
+
 [![Appveyor Build Status](https://ci.appveyor.com/api/projects/status/5gw9xok4e58aixsv?svg=true)](https://ci.appveyor.com/project/kmsquire/datastructures-jl)
 [![Test Coverage](https://codecov.io/github/JuliaCollections/OrderedCollections.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaCollections/OrderedCollections.jl?branch=master)
-[![PkgEval.jl Status on Julia 0.7](http://pkg.julialang.org/badges/OrderedCollections_0.7.svg)](http://pkg.julialang.org/?pkg=OrderedCollections&ver=0.7)
+
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliacollections.github.io/OrderedCollections.jl/latest)
 
 OrderedCollections.jl
