@@ -487,3 +487,13 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     end
     return iter
 end
+
+# allow indexing of OrderedDict keys and values with `keys(h)[i]` or `values(h)[i]`
+Base.getindex(h::Base.KeySet{K,<:OrderedDict{K}}, index) where K = h.dict.keys[index]
+Base.getindex(h::Base.ValueIterator{<:OrderedDict}, index) = h.dict.vals[index]
+
+Base.firstindex(h::Base.KeySet{K,<:OrderedDict{K}}) where K = firstindex(h.dict.keys)
+Base.firstindex(h::Base.ValueIterator{<:OrderedDict}) = firstindex(h.dict.vals)
+
+Base.lastindex(h::Base.KeySet{K,<:OrderedDict{K}}) where K = lastindex(h.dict.keys)
+Base.lastindex(h::Base.ValueIterator{<:OrderedDict}) = lastindex(h.dict.vals)

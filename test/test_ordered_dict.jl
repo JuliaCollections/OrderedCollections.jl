@@ -154,6 +154,14 @@ using OrderedCollections, Test
         @test get_KeyError
     end
 
+    @testset "linear indexing" begin
+        d = OrderedDict{Char,Int}([('a', 10), ('b', 20), ('c', 30)])
+        @test keys(d)[begin] == 'a'
+        @test keys(d)[3] == 'c'
+        @test values(d)[2] == 20
+        @test values(d)[end] == 30
+    end
+
     @testset "filter" begin
         _d = OrderedDict([("a", 0)])
         v = [k for k in filter(x->length(x)==1, collect(keys(_d)))]
