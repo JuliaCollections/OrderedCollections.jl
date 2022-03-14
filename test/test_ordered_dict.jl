@@ -156,7 +156,7 @@ using OrderedCollections, Test
 
     @testset "linear indexing" begin
         d = OrderedDict{Char,Int}([('a', 10), ('b', 20), ('c', 30)])
-        @test keys(d)[begin] == 'a'
+        @test keys(d)[firstindex(keys(d))] == 'a'
         @test keys(d)[3] == 'c'
         @test values(d)[2] == 20
         @test values(d)[end] == 30
