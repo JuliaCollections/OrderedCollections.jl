@@ -4,14 +4,14 @@ const StoreType = Union{<:Tuple, <:Vector}
     LittleDict(keys, vals)<:AbstractDict
 
 An ordered dictionary type for small numbers of keys.
-Rather than using `hash` or some other sophisicated measure
+Rather than using `hash` or some other sophisticated measure
 to store the vals in a clever arrangement,
 it just keeps everything in a pair of lists.
 
-While theoretically this has expected time complexity _O(n)_,
-vs the hash-based `OrderDict`/`Dict`'s expected time complexity _O(1)_,
-and the search-tree-based `SortedDict`'s expected time complexity _O(log(n))_.
-In practice it is really fast, because it is cache & SIMD friendly.
+While theoretically this has expected time complexity _O(n)_
+(vs the hash-based [`OrderedDict`](@ref)/`Dict`'s expected time complexity _O(1)_,
+and the search-tree-based `SortedDict`'s expected time complexity _O(log(n))_),
+in practice it is really fast, because it is cache & SIMD friendly.
 
 It is reasonable to expect it to outperform an `OrderedDict`,
 with up to around 30 elements in general;
@@ -24,7 +24,7 @@ as well as on how many hash collisions occur etc.
     When constructing a `LittleDict` it is faster to pass in the keys and
     values each as seperate lists. So if you have them seperately already,
     do `LittleDict(ks, vs)` not `LittleDict(zip(ks, vs))`.
-    Further keys or value lists that are passed as `Tuple`s will not require any
+    Furthermore, key and value lists that are passed as `Tuple`s will not require any
     copies to create the `LittleDict`, so `LittleDict(ks::Tuple, vs::Tuple)`
     is the fastest constructor of all.
 """
@@ -95,9 +95,10 @@ kvtype(::Type{Tuple{K,V}}) where {K,V} = (K,V)
 
 """
     freeze(dd::AbstractDict)
-Render an dictionary immutable by converting it to a `Tuple` backed
+
+Render a dictionary immutable by converting it to a `Tuple`-backed
 `LittleDict`.
-The `Tuple` backed `LittleDict` is faster than the `Vector` backed `LittleDict`,
+The `Tuple`-backed `LittleDict` is faster than the `Vector`-backed `LittleDict`,
 particularly when the keys are all concretely typed.
 """
 function freeze(dd::AbstractDict)
@@ -198,7 +199,7 @@ function add_new!(dd::UnfrozenLittleDict{K, V}, key, value) where {K, V}
     vv = convert(V, value)
 
     # if we can convert it to the right type, and the dict is unfrozen
-    # then neither push can fail, so the dict length with remain in sync
+    # then neither push can fail, so the dict length will remain in sync
     push!(dd.keys, kk)
     push!(dd.vals, vv)
 
