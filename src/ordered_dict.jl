@@ -459,6 +459,12 @@ function iterate(t::OrderedDict, i)
     return (Pair(t.keys[i], t.vals[i]), i+1)
 end
 
+function lastindex(t::OrderedDict)
+    t.ndel > 0 && rehash!(t)
+    length(t.keys) < 1 && return 0
+    return t.keys[end]
+end
+
 function _merge_kvtypes(d, others...)
     K, V = keytype(d), valtype(d)
     for other in others

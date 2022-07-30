@@ -462,4 +462,26 @@ using OrderedCollections, Test
         @test pop!(od) == (:c => 3)
         @test :c ∉ keys(od)
     end
+
+    @testset "last" begin
+        od = OrderedDict{Char, Int}()
+        @test lastindex(od) == 0
+        @test_throws KeyError last(od)
+
+        od['a'] = 1
+        @test lastindex(od) == 'a'
+        @test last(od) == 1
+
+        for c in 'b':'e'
+            od[c] = c-'a'+1
+        end
+        @test lastindex(od) == 'e'
+        @test last(od) == 5
+        delete!(od, 'c')
+        @test lastindex(od) == 'e'
+        @test last(od) == 5
+        pop!(od)
+        @test lastindex(od) == 'd'
+        @test last(od) == 4
+    end
 end # @testset OrderedDict
