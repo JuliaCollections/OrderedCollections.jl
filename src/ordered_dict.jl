@@ -18,8 +18,11 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     maxprobe::Int
     dirty::Bool
 
+    function OrderedDict{K,V}(slots, keys, vals, ndel, maxprobe, dirty)
+        new{K,V}(slots, keys, vals, ndel, maxprobe, dirty)
+    end
     function OrderedDict{K,V}() where {K,V}
-        new{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
+        OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
     end
     function OrderedDict{K,V}(kv) where {K,V}
         h = OrderedDict{K,V}()
@@ -42,7 +45,7 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
             rehash!(d)
         end
         @assert d.ndel == 0
-        new{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
+        OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
     end
 end
 OrderedDict() = OrderedDict{Any,Any}()
