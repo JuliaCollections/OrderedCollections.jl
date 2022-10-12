@@ -18,7 +18,7 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     maxprobe::Int
     dirty::Bool
 
-    function OrderedDict{K,V}(slots, keys, vals, ndel, maxprobe, dirty)
+    function OrderedDict{K,V}(slots, keys, vals, ndel, maxprobe, dirty) where {K,V}
         new{K,V}(slots, keys, vals, ndel, maxprobe, dirty)
     end
     function OrderedDict{K,V}() where {K,V}

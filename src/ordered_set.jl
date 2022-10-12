@@ -6,7 +6,7 @@
 struct OrderedSet{T}  <: AbstractSet{T}
     dict::OrderedDict{T,Nothing}
 
-    OrderedSet{T}(dict::OrderedDict{T,Nothing}) = new{T}(dict)
+    OrderedSet{T}(dict::OrderedDict{T,Nothing}) where {T} = new{T}(dict)
     OrderedSet{T}() where {T} = new{T}(OrderedDict{T,Nothing}())
     OrderedSet{T}(xs) where {T} = union!(new{T}(OrderedDict{T,Nothing}()), xs)
 end
