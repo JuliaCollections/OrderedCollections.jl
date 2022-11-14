@@ -487,3 +487,11 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     end
     return iter
 end
+
+function last(h::OrderedDict)
+    h.ndel > 0 && rehash!(h)
+    key = h.keys[end]
+    index = ht_keyindex(h, key, false)
+    @inbounds val = h.vals[h.slots[index]]
+    return key => val
+end
