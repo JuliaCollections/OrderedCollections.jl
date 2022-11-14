@@ -233,6 +233,10 @@ using OrderedCollections, Test
         @test first(OrderedDict([(:f, 2)])) == Pair(:f,2)
     end
 
+    @testset "last" begin
+        @test last(OrderedDict([(:f, 2)])) == Pair(:f,2)
+    end
+
     @testset "Issue #1821" begin
         d = OrderedDict{String, Vector{Int}}()
         d["a"] = [1, 2]
