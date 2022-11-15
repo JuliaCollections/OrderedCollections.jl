@@ -487,3 +487,5 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     end
     return iter
 end
+
+last(h::OrderedDict) = h.keys[end] => h.vals[end]
