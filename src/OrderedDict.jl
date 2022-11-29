@@ -33,7 +33,6 @@ end
 OrderedDict() = OrderedDict{Any,Any}()
 OrderedDict(kv::Tuple{}) = OrderedDict()
 
-
 # TODO: this can probably be simplified using `eltype` as a THT (Tim Holy trait)
 # OrderedDict{K,V}(kv::Tuple{Vararg{Tuple{K,V}}})     = OrderedDict{K,V}(kv)
 # OrderedDict{K  }(kv::Tuple{Vararg{Tuple{K,Any}}})   = OrderedDict{K,Any}(kv)
@@ -104,14 +103,14 @@ function Base.iterate(d::OrderedDict{K,V}) where {K,V}
     if length(d) === 0
         return nothing
     else
-        return (Pair{K,V}(_get(_values(keys(d)), 1), _get(_values(d), 1)), 2)
+        return (Pair{K,V}(_get(_values(keys(d)), 1), unsafe_get(_values(d), 1)), 2)
     end
 end
 function Base.iterate(d::OrderedDict{K,V}, i::Int) where {K,V}
     if i > length(d)
         return nothing
     else
-        return (Pair{K,V}(_get(_values(keys(d)), i), _get(_values(d), i)), i + 1)
+        return (Pair{K,V}(_get(_values(keys(d)), i), unsafe_get(_values(d), i)), i + 1)
     end
 end
 function Base.iterate(d::OrderedValues)
@@ -125,44 +124,23 @@ end
 
 Base.copy(d::OrderedDict) = OrderedDict(d)
 
-function Base.setindex!(d::OrderedDict{K,V}, val, key) where {K,V}
-    flag, slot_i, i = lookup(keys(d), key)
-    if flag === 0x02
-        unsafe_set!(_values(d), Int(slot_i), val)
+function Base.setindex!(d::OrderedDict{K,V}, val0, key) where {K,V}
+    val = try_convert(V, val0)
+    success, index = try_push!(keys(d), key)
+    if success
+        vs = _values(d)
+        unsafe_grow_end!(vs, 1)
+        unsafe_set!(vs, index, val)
     else
-        push!(keys(d), key)
-        push!(_values(d), val)
+        unsafe_set!(_values(d), index, val)
     end
     return d
 end
-#=
-function _setindex!(d::OrderedDict, val, key)
-    s = keys(d)
-    ks = _values(s)
-    slots = _slots(s)
-    hs = _settings(s)
-    nkeys = length(ks)
-    nslots = length(slots)
-    mask = nslots - 1
-    nkplus = nkeys + 1
-    vs = _values(d)
-    flag, idx = try_insert_slot2!(ks, slots, hs, mask, key, nkplus)
-    if flag === 0x02
-        unsafe_set!(vs, idx, val)
-    else
-        unsafe_grow_end!(ks, 1)
-        unsafe_set!(ks, nkplus, key)
-        unsafe_grow_end!(vs, 1)
-        unsafe_set!(vs, nkplus, val)
-    end
-    return nothing
-end
-=#
 
 function Base.getindex(d::OrderedDict, key)
-    flag, index = lookup(keys(d), key)
+    flag, slot, index = lookup(keys(d), key)
     @boundscheck flag === 0x02 || throw(KeyError(key))
-    return _get(_values(d), index)
+    return unsafe_get(_values(d), slot)
 end
 
 function Base.get(d::OrderedDict, key, default)
@@ -200,7 +178,7 @@ function _get!(d::OrderedDict, key, default)
     mask = nslots - 1
     nkplus = nkeys + 1
     vs = _values(d)
-    flag, idx = try_insert_slot2!(ks, slots, hs, mask, key, nkplus)
+    flag, idx = try_insert_slot2!(ks, slots, hs, nkeys, nslots, mask, key, nkplus)
     if flag === 0x02
         return unsafe_get(vs, idx)
     else
@@ -222,7 +200,7 @@ function _get!(f::Union{Type,Function}, d::OrderedDict, key)
     mask = nslots - 1
     nkplus = nkeys + 1
     vs = _values(d)
-    flag, idx = try_insert_slot2!(ks, slots, hs, mask, key, nkplus)
+    flag, idx = try_insert_slot2!(ks, slots, hs, nkeys, nslots, mask, key, nkplus)
     if flag === 0x02
         return unsafe_get(vs, idx)
     else

@@ -204,14 +204,15 @@ function try_push!(s::OrderedSet, key)
     nkplus = nvalues + 1
     nslots = length(slots)
     mask = nslots - 1
-    idx = try_insert_slot!(values, slots, hs, mask, key, nkplus)
-    if idx === 0
+    flag, idx = try_insert_slot2!(values, slots, hs, nvalues, nslots, mask, key, nkplus)
+    #idx = try_insert_slot!(values, slots, hs, mask, key, nkplus)
+    if flag === 0x02
+        return false, idx
+    else
         unsafe_grow_end!(values, 1)
         _set!(values, nkplus, key)
-        _maybe_grow_rehash!(hs, values, slots, nslots, nkplus)
-        return true
-    else
-        return false
+        flag === 0x01 && _maybe_grow_rehash!(hs, values, slots, nslots, nkplus)
+        return true, nkplus
     end
 end
 
@@ -229,12 +230,12 @@ function try_insert!(s::OrderedSet, i::Int, key)
     nvalues = length(values)
     nslots = length(slots)
     mask = nslots - 1
-    idx = try_insert_slot!(values, slots, hs, mask, key, i)
+    flag, index = try_insert_slot2!(values, slots, hs, mask, key, i)
     if idx === 0
         unsafe_grow_at!(values, i, 1)
         _set!(values, i, key)
         _maybe_grow_rehash!(hs, values, slots, nslots, nvalues + 1)
-        return true, in
+        return true, index
     else
         return false
     end
@@ -367,83 +368,5 @@ function try_delete!(s::OrderedSet, key)
         out = _try_delete!(values, slots, key, max_probe(s), nvalues, nslots)
     end
     return out
-end
-
-# rehashing methods
-function _rehash!(
-    values::Vector, slots::Vector{UInt32}, nvalues::Int,
-    old_mask::Int, new_mask::Int, oldmp::UInt8
-)
-    newmp = 0x00
-    kloc = 1
-    while kloc <= nvalues
-        si0 = reinterpret(Int, hash(unsafe_get(values, kloc)))
-        newmp = max(newmp, _move_slot!(slots, si0, kloc, old_mask, new_mask, oldmp))
-        kloc += 1
-    end
-    return newmp
-end
-
-function _maybe_grow_rehash!(
-    hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
-)
-    if should_grow(nvalues, nslots)
-        newsz = next_slot_size(nslots)
-        unsafe_grow_end!(slots, newsz - nslots)
-        i = nslots + 1
-        while i <= newsz
-            _set!(slots, i, EMPTY_SLOT)
-            i += 1
-        end
-        Base.GC.@preserve values begin
-            hs.max_probe = _rehash!(values, slots, nvalues, nslots-1, newsz - 1, hs.max_probe)
-        end
-    end
-    nothing
-end
-function _maybe_shrink_rehash!(
-    hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
-)
-    if should_shrink(nvalues, nslots)
-        newsz = prev_slot_size(nslots)
-        Base.GC.@preserve values begin
-            hs.max_probe = _rehash!(values, slots, nvalues, nslots-1, newsz - 1, hs.max_probe)
-        end
-        unsafe_delete_end!(slots, nslots - newsz)
-    end
-    nothing
-end
-
-function try_insert_slot!(
-    values::Vector, slots::Vector{UInt32}, hs::HashSettings{L,S}, mask::Int, key, kloc::Int
-) where {L,S}
-    itr = 0x00
-    sloc = to_slot_index(key, mask)
-    mp = hs.max_probe
-    while itr <= mp
-        slot_i = unsafe_get(slots, sloc)
-        if slot_i === EMPTY_SLOT
-            unsafe_set!(slots, sloc, kloc)
-            return 0
-        end
-        key == unsafe_get(values, slot_i) && return Int(slot_i)
-        sloc = next_slot_index(sloc, mask)
-        itr += 0x01
-    end
-
-    # If key is not present, may need to keep searching to find slot
-    maxallowed = UInt8(max(return_uint8(L), mask >> return_uint8(S)))
-    while true
-        if unsafe_get(slots, sloc) === EMPTY_SLOT
-            unsafe_set!(slots, sloc, kloc)
-            hs.max_probe = itr
-            return 0
-        end
-        sloc = next_slot_index(sloc, mask)
-        itr === maxallowed && break
-        itr += 0x01
-    end
-    _maybe_grow_rehash!(hs, values, slots, length(slots), length(values))
-    return try_insert_slot!(values, slots, hs, length(slots) - 1, key, kloc)
 end
 

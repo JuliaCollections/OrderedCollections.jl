@@ -20,6 +20,7 @@ import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
 export OrderedDict, OrderedSet, LittleDict
 export freeze
 
+include("HashSettings.jl")
 include("dict_support.jl")
 include("little_dict.jl")
 include("OrderedSet.jl")
@@ -33,8 +34,8 @@ Property of associative containers, that is `true` if the container type has a
 defined order (such as `OrderedDict` and `SortedDict`), and `false` otherwise.
 """
 isordered(::Type{T}) where {T<:AbstractDict} = false
-isordered(::Type{T}) where {T<:OrderedDict} = true
-
+isordered(@nospecialize T::Type{<:OrderedDict}) = true
+isordered(@nospecialize T::Type{<:OrderedSet}) = true
 
 import Base: similar
 @deprecate similar(d::OrderedDict) empty(d)

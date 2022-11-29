@@ -1,9 +1,15 @@
-# support functions
 
-# _tablesz and hashindex are defined in Base, but are not exported,
-# so they are redefined here.
-_tablesz(x::Integer) = x < 16 ? 16 : one(x)<<((sizeof(x)<<3)-leading_zeros(x-1))
-hashindex(key, sz) = (reinterpret(Int,(hash(key))) & (sz-1)) + 1
+const EMPTY_SLOT = 0x00000000
+const MAX_VALUES = typemax(UInt32) >> 1
+const INT_SIZE = sizeof(Int) * 8
+
+# flags::UInt8
+#
+# `0x00` : exceeded max probe before finding value or candidate empty slot
+# `0x01` : found empty slot but not value
+# `0x02` : found slot corresponding to values index
+# `0x03` : found empty slot after increasing max probe
+# `0x04` : found empty slot after increasing number of slots
 
 function unsafe_delete_end!(x::Vector, delta)
     ccall(:jl_array_del_end, Cvoid, (Any, UInt), x, delta)
@@ -52,41 +58,11 @@ function try_convert(::Type{T}, x0) where {T}
     return x
 end
 
-mutable struct HashSettings{L,S}
-    max_probe::UInt8
-    mask::Int
-    age::UInt32
-
-    function HashSettings{L,S}(max_probe::UInt8, mask::Int=15) where {L,S}
-        new{L,S}(max_probe, mask, 0x00000000)
-    end
-    HashSettings() = HashSettings{0x10,0x06}(0x00)
-end
-
-function Base.copy(x::HashSettings{L,S}) where {L,S}
-    HashSettings{L,S}(getfield(x, :max_probe), getfield(x, :mask))
-end
-
-function Base.getproperty(x::HashSettings{L,S}, s::Symbol) where {L,S}
-    if s === :probe_limit
-        return return_uint8(L)
-    elseif s === :probe_shift
-        return return_uint8(S)
-    else
-        return getfield(x, s)
-    end
-end
-
-const EMPTY_SLOT = 0x00000000
-const MAX_VALUES = typemax(UInt32) >> 1
-const INT_SIZE = sizeof(Int) * 8
-
-
 # `(0x00, slot_i, index)` : did not find `value`. `index` was last attempt before exceeding max probe
 # `(0x01, slot_i, index)` : did not find `value`. `index` is an empty slot where new index for `value` can be set
-# `(0x02, slot_i, index)` : found `values[index] == value`
+# `(0x02, slot_i, index)` : found `values[slots[index]] == value`
 function _lookup(
-    values::Vector{T}, slots::Vector{UInt32}, max_probe::UInt8, mask::Int, value::T, i0::Int
+    values::Vector{T}, slots::Vector{UInt32}, max_probe::UInt8, mask::Int, value, i0::Int
 ) where {T}
     itr = 0x00
     empty_index = 0
@@ -102,20 +78,15 @@ function _lookup(
         else
             unsafe_get(values, Int(slot_i)) == value && return (0x02, slot_i, i)
         end
-        itr === max_probe && return (flag, EMPTY_SLOT, empty_index)
+        itr === max_probe && return (flag, EMPTY_SLOT, flag === 0x01 ? empty_index : i)
         itr += 0x01
         i = next_slot_index(i, mask)
     end
 end
 
 function _lookup_shift_max_probe(
-    values::Vector{T},
-    slots::Vector{UInt32},
-    old_max_probe::UInt8,
-    max_allowed::UInt8,
-    mask::Int,
-    i::Int,
-) where {T}
+    slots::Vector{UInt32}, old_max_probe::UInt8, max_allowed::UInt8, mask::Int, i::Int,
+)
     itr = old_max_probe
     while true
         slot_i = unsafe_get(slots, i)
@@ -126,66 +97,51 @@ function _lookup_shift_max_probe(
     end
 end
 
+# flags
+#   `0x01` : `index` is 
 # `(0x01, index)` : did not find `value`. `index` is an empty slot where new index for `value` can be set
 # `(0x02, index)` : found `values[index] == value`
-#=
 function try_insert_slot2!(
-    values::Vector{T}, slots::Vector{UInt32}, hp::HashSettings{L,S}, mask::Int, value, kloc::Int
+    values::Vector{T},
+    slots::Vector{UInt32},
+    hs::HashSettings{L,S},
+    nvalues::Int,
+    nslots::Int,
+    mask::Int,
+    value,
+    kloc::Int
 ) where {T,L,S}
-    mp = hp.max_probe
+    mp = hs.max_probe
     flag, slot, index = _lookup(values, slots, mp, mask, value, to_slot_index(try_convert(T, value), mask))
     if flag === 0x00
         # If value is not present, may need to increase max probe to find empty slot
         max_allowed = UInt8(max(return_uint8(L), mask >> return_uint8(S)))
-        new_max_probe, index = _lookup_shift_max_probe(values, slots, mp, max_allowed, mask, index)
+        new_max_probe, index = _lookup_shift_max_probe(slots, mp, max_allowed, mask, index)
         if new_max_probe === max_allowed
-            _maybe_grow_rehash!(hp, values, slots, length(slots), length(values))
-            return try_insert_slot2!(values, slots, hp, mask, value, kloc)
+            newsz = next_slot_size(nslots)
+            unsafe_grow_end!(slots, newsz - nslots)
+            i = nslots + 1
+            while i <= newsz
+                unsafe_set!(slots, i, EMPTY_SLOT)
+                i += 1
+            end
+            new_mask = newsz - 1
+            Base.GC.@preserve values begin
+                hs.max_probe = _rehash!(values, slots, nvalues, mask, new_mask, hs.max_probe)
+            end
+            try_insert_slot2!(values, slots, hs, nvalues, newsz, new_mask, value, kloc)
+            return (0x04, kloc)
         else
-            hp.max_probe = new_max_probe
+            hs.max_probe = new_max_probe
             unsafe_set!(slots, index, kloc)
-            return (0x01, index)
+            return (0x03, kloc)
         end
     elseif flag === 0x01
         unsafe_set!(slots, index, kloc)
-        return (flag, index)
+        return (0x01, kloc)
     else  # flag === 0x02
-        return (flag, index)
+        return (0x02, Int(slot))
     end
-end
-=#
-
-function try_insert_slot2!(
-    values::Vector, slots::Vector{UInt32}, hs::HashSettings{L,S}, mask::Int, key, kloc::Int
-) where {L,S}
-    itr = 0x00
-    sloc = to_slot_index(key, mask)
-    mp = hs.max_probe
-    while itr <= mp
-        slot_i = unsafe_get(slots, sloc)
-        if slot_i === EMPTY_SLOT
-            unsafe_set!(slots, sloc, kloc)
-            return (0x01, kloc)
-        end
-        key == unsafe_get(values, slot_i) && return (0x02, Int(slot_i))
-        sloc = next_slot_index(sloc, mask)
-        itr += 0x01
-    end
-
-    # If key is not present, may need to keep searching to find slot
-    maxallowed = UInt8(max(return_uint8(L), mask >> return_uint8(S)))
-    while true
-        if unsafe_get(slots, sloc) === EMPTY_SLOT
-            unsafe_set!(slots, sloc, kloc)
-            hs.max_probe = itr
-            return (0x01, kloc)
-        end
-        sloc = next_slot_index(sloc, mask)
-        itr === maxallowed && break
-        itr += 0x01
-    end
-    _maybe_grow_rehash!(hs, values, slots, mask + 1, length(values))
-    return try_insert_slot!(values, slots, hs, mask, key, kloc)
 end
 
 # `(true, index)` : successfully deleted from `index`
@@ -235,5 +191,82 @@ function _add_slots!(
         i += 1
     end
     nothing
+end
+
+function _rehash!(
+    values::Vector, slots::Vector{UInt32}, nvalues::Int,
+    old_mask::Int, new_mask::Int, oldmp::UInt8
+)
+    newmp = 0x00
+    kloc = 1
+    while kloc <= nvalues
+        si0 = reinterpret(Int, hash(unsafe_get(values, kloc)))
+        newmp = max(newmp, _move_slot!(slots, si0, kloc, old_mask, new_mask, oldmp))
+        kloc += 1
+    end
+    return newmp
+end
+
+function _maybe_grow_rehash!(
+    hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
+)
+    if should_grow(nvalues, nslots)
+        newsz = next_slot_size(nslots)
+        unsafe_grow_end!(slots, newsz - nslots)
+        i = nslots + 1
+        while i <= newsz
+            _set!(slots, i, EMPTY_SLOT)
+            i += 1
+        end
+        Base.GC.@preserve values begin
+            hs.max_probe = _rehash!(values, slots, nvalues, nslots-1, newsz - 1, hs.max_probe)
+        end
+    end
+    nothing
+end
+function _maybe_shrink_rehash!(
+    hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
+)
+    if should_shrink(nvalues, nslots)
+        newsz = prev_slot_size(nslots)
+        Base.GC.@preserve values begin
+            hs.max_probe = _rehash!(values, slots, nvalues, nslots-1, newsz - 1, hs.max_probe)
+        end
+        unsafe_delete_end!(slots, nslots - newsz)
+    end
+    nothing
+end
+
+function try_insert_slot!(
+    values::Vector, slots::Vector{UInt32}, hs::HashSettings{L,S}, mask::Int, key, kloc::Int
+) where {L,S}
+    itr = 0x00
+    sloc = to_slot_index(key, mask)
+    mp = hs.max_probe
+    while itr <= mp
+        slot_i = unsafe_get(slots, sloc)
+        if slot_i === EMPTY_SLOT
+            unsafe_set!(slots, sloc, kloc)
+            return 0
+        end
+        key == unsafe_get(values, slot_i) && return Int(slot_i)
+        sloc = next_slot_index(sloc, mask)
+        itr += 0x01
+    end
+
+    # If key is not present, may need to keep searching to find slot
+    maxallowed = UInt8(max(return_uint8(L), mask >> return_uint8(S)))
+    while true
+        if unsafe_get(slots, sloc) === EMPTY_SLOT
+            unsafe_set!(slots, sloc, kloc)
+            hs.max_probe = itr
+            return 0
+        end
+        sloc = next_slot_index(sloc, mask)
+        itr === maxallowed && break
+        itr += 0x01
+    end
+    _maybe_grow_rehash!(hs, values, slots, length(slots), length(values))
+    return try_insert_slot!(values, slots, hs, length(slots) - 1, key, kloc)
 end
 
