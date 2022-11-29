@@ -1,8 +1,3 @@
-# These can be changed, to trade off better performance for space
-const global maxallowedprobe = isdefined(Base, :maxallowedprobe) ? Base.maxallowedprobe : 16
-const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobeshift : 6
-
-# OrderedDict
 
 """
     OrderedDict
@@ -489,3 +484,4 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
 end
 
 last(h::OrderedDict) = h.keys[end] => h.vals[end]
+

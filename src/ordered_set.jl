@@ -97,3 +97,4 @@ function keys(s::OrderedSet)
     s.dict.ndel > 0 && rehash!(s.dict)
     return 1:length(s)
 end
+

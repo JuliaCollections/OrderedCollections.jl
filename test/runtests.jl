@@ -1,7 +1,18 @@
 using OrderedCollections
+using Random
+using Serialization
 using Test
-using Random, Serialization
 
+
+@testset "OrderedSet" begin
+    include("OrderedSet.jl")
+end
+@testset "OrderedDict" begin
+    include("OrderedDict.jl")
+end
+
+
+#=
 @test isempty(detect_ambiguities(Base, Core, OrderedCollections))
 
 tests = [
@@ -23,3 +34,4 @@ for t in tests
 end
 
 end # @testset
+=#
