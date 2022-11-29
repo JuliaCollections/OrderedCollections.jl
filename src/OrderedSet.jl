@@ -89,7 +89,7 @@ end
 function lookup(s::OrderedSet{T}, value) where {T}
     slots = _slots(s)
     mask = length(slots) - 1
-    _lookup(_values(s), slots, max_probe(s), mask, value, to_slot_index(try_convert(T, value), mask))
+    _lookup(_values(s), slots, max_probe(s), mask, value, to_slot_index(value, mask))
 end
 
 function Base.pop!(s::OrderedSet)
@@ -101,7 +101,7 @@ function Base.pop!(s::OrderedSet)
     nslots = length(slots)
     mask = nslots - 1
     key = unsafe_get(values, nvalues)
-    _set!(slots, _find_slot(slots, key, nvalues, mask), EMPTY_SLOT)
+    unsafe_set!(slots, _find_slot(slots, key, nvalues, mask), EMPTY_SLOT)
     unsafe_delete_end!(values, 1)
     _maybe_shrink_rehash!(_settings(s), values, slots, nslots, nvalues-1)
     assert_age(s, age)
@@ -117,7 +117,7 @@ function Base.popfirst!(s::OrderedSet)
     nslots = length(slots)
     mask = nslots - 1
     key = unsafe_get(values, 1)
-    _set!(slots, _find_slot(slots, key, 1, mask), EMPTY_SLOT)
+    unsafe_set!(slots, _find_slot(slots, key, 1, mask), EMPTY_SLOT)
     _add_slots!(values, slots, 1, nvalues, mask, -0x00000001)
     unsafe_delete_beg!(values, 1)
     _maybe_shrink_rehash!(_settings(s), values, slots, nslots, nvalues-1)
@@ -204,7 +204,8 @@ function try_push!(s::OrderedSet, key)
     nkplus = nvalues + 1
     nslots = length(slots)
     mask = nslots - 1
-    if try_insert_slot!(values, slots, hs, mask, key, nkplus) === 0
+    idx = try_insert_slot!(values, slots, hs, mask, key, nkplus)
+    if idx === 0
         unsafe_grow_end!(values, 1)
         _set!(values, nkplus, key)
         _maybe_grow_rehash!(hs, values, slots, nslots, nkplus)
@@ -228,7 +229,8 @@ function try_insert!(s::OrderedSet, i::Int, key)
     nvalues = length(values)
     nslots = length(slots)
     mask = nslots - 1
-    if try_insert_slot!(values, slots, hs, mask, key, i) === 0
+    idx = try_insert_slot!(values, slots, hs, mask, key, i)
+    if idx === 0
         unsafe_grow_at!(values, i, 1)
         _set!(values, i, key)
         _maybe_grow_rehash!(hs, values, slots, nslots, nvalues + 1)
@@ -252,7 +254,8 @@ function try_pushfirst!(s::OrderedSet, key)
     nvalues = length(values)
     nslots = length(slots)
     mask = nslots - 1
-    if try_insert_slot!(values, slots, hs, mask, key, 1) === 0
+    idx = try_insert_slot!(values, slots, hs, mask, key, 1)
+    if idx === 0
         _growbeg!(values, 1)
         _set!(values, 1, key)
         _maybe_grow_rehash!(hs, values, slots, nslots, nvalues + 1)
