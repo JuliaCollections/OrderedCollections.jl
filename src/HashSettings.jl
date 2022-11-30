@@ -24,3 +24,5 @@ end
     end
 end
 
+Base.propertynames(::HashSettings) = (:max_probe, :probe_limit, :probe_shift, :age)
+

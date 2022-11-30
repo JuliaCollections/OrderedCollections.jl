@@ -154,17 +154,17 @@ end
 
 function Base.get!(d::OrderedDict{K}, key, default) where {K}
     s = keys(d)
-    age = _age(s)
+    age = s.age
     out = _get!(d, try_convert(K, key), default)
-    assert_age(s, age)
+    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return out
 end
 function Base.get!(f::Union{Type,Function}, d::OrderedDict{K}, key) where {K}
     s = keys(d)
-    age = _age(s)
+    age = s.age
     out = _get!(f, d, try_convert(K, key))
-    assert_age(s, age)
+    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return out
 end
@@ -216,10 +216,10 @@ end
 
 function Base.delete!(d::OrderedDict, key)
     ks = keys(d)
-    age = _age(ks)
+    age = ks.age
     success, index = try_delete!(ks, key)
     success && unsafe_delete_at!(_values(d), index, 1)
-    assert_age(ks, age)
+    @assert ks.age === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(ks)
     return d
 end
@@ -242,13 +242,13 @@ function Base.popfirst!(d::OrderedDict{K,V}) where {K,V}
 end
 function Base.pop!(d::OrderedDict, key)
     s = keys(d)
-    age = _age(s)
+    age = s.age
     success, index = try_delete!(s, key)
     success || throw(KeyError(key))
     vs = _values(d)
     out = unsafe_get(vs, index)
     unsafe_delete_at!(vs, index, 1)
-    assert_age(s, age)
+    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return out
 end
@@ -256,7 +256,7 @@ end
 function Base.pop!(d::OrderedDict, key, default)
     ks = keys(d)
     vs = _values(d)
-    age = _age(ks)
+    age = ks.age
     success, index = try_delete!(ks, key)
     if success
         out = unsafe_get(vs, index)
@@ -264,7 +264,7 @@ function Base.pop!(d::OrderedDict, key, default)
     else
         out = default
     end
-    assert_age(ks, age)
+    @assert ks.age === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(ks)
     return out
 end
