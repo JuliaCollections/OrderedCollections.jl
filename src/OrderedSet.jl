@@ -21,25 +21,16 @@ Base.collect(s::OrderedSet) = copy(_values(s))
 _slots(s::OrderedSet) = getfield(s, :slots)
 _values(s::OrderedSet) = getfield(s, :values)
 _settings(s::OrderedSet) = getfield(s, :settings)
-_age(s::OrderedSet) = getfield(getfield(s, :settings), :age)
-_max_probe(s::OrderedSet) = getfield(getfield(s, :settings), :max_probe)
-function increment_age!(s::OrderedSet)
-    x = _settings(s)
-    setfield!(x, :age, getfield(x, :age) + 0x00000001)
-    nothing
-end
-function assert_age(s::OrderedSet, age::UInt32)
-    @assert s.age == age "Multiple concurrent writes to OrderedSet detected!"
-    nothing
-end
 
-function Base.getproperty(s::OrderedSet, sym::Symbol)
-    getproperty(getfield(s, :settings), sym)
+_max_probe(s::OrderedSet) = getfield(getfield(s, :settings), :max_probe)
+_max_probe!(s::OrderedSet, mp::UInt8) = _max_probe!(getfield(s, :settings), mp)
+
+_age(s::OrderedSet) = _age(getfield(s, :settings))
+increment_age!(s::OrderedSet) = increment_age!(getfield(s, :settings))
+
+function Base.propertynames(s::OrderedSet, private::Bool=false)
+    private ? (:values, :slots, :settings) : ()
 end
-function Base.setproperty!(s::OrderedSet, sym::Symbol, val)
-    setproperty!(getfield(s, :settings), sym, val)
-end
-Base.propertynames(s::OrderedSet) = propertynames(getfield(s, :settings))
 
 Base.firstindex(::OrderedSet) = 1
 
@@ -52,24 +43,24 @@ end
 
 Base.sizehint!(s::OrderedSet, newsz) = sizehint!(s, Int(newsz))
 function Base.sizehint!(s::OrderedSet, newsz::Int)
-    age = _age(s)
-    _sizehint!(s, newsz)
-    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
+    if newsz !== length(s)
+        age = _age(s)
+        _sizehint!(s, newsz)
+        @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
+    end
     return s
 end
 function _sizehint!(s::OrderedSet, sz::Int)
     values = _values(s)
     nvalues = length(values)
-    if sz !== nvalues
-        sizehint!(values, sz)
-        hs = _settings(s)
-        slots = _slots(s)
-        nslots = length(slots)
-        if sz > nvalues
-            _maybe_grow_rehash!(hs, values, slots, nslots, nvalues)
-        else
-            _maybe_shrink_rehash!(hs, values, slots, nslots, nvalues)
-        end
+    sizehint!(values, sz)
+    hs = _settings(s)
+    slots = _slots(s)
+    nslots = length(slots)
+    if sz > nvalues
+        _maybe_grow_rehash!(hs, values, slots, nslots, nvalues)
+    else
+        _maybe_shrink_rehash!(hs, values, slots, nslots, nvalues)
     end
     return nothing
 end
@@ -98,7 +89,6 @@ function Base.in(value::T, s::OrderedSet{T}) where {T}
     mask = length(slots) - 1
     getfield(_lookup(_values(s), slots, _max_probe(s), mask, value, to_slot_index(value, mask)), 1) === 0x02
 end
-
 
 function lookup(s::OrderedSet{T}, value) where {T}
     slots = _slots(s)
@@ -280,9 +270,7 @@ function try_pushfirst!(s::OrderedSet, key)
 end
 function Base.union!(s::OrderedSet{T}, itr) where {T}
     age = _age(s)
-    if Base.haslength(itr)
-        _sizehint!(s, length(s) + return_int(length(itr)))
-    end
+    Base.haslength(itr) && _sizehint!(s, length(s) + return_int(length(itr)))
     for x in itr
         try_push!(s, try_convert(T, x))
         length(s) === MAX_VALUES && break
@@ -322,13 +310,12 @@ function Base.show(io::IO, s::OrderedSet)
     print(io, ")")
 end
 
-#region slot-utilities
 to_slot_index(key, mask::Int) = (reinterpret(Int, hash(key)) & mask) + 1
 # we know kloc exists in slots and need to replace it with an empty slot value
 function _find_slot(
-    slots::Vector{UInt32}, key, slot::UInt32, mask::Int
+    slots::Vector{UInt32}, val, slot::UInt32, mask::Int
 )
-    index = to_slot_index(key, mask)
+    index = (reinterpret(Int, hash(val)) & mask) + 1
     while true
         slot_i = unsafe_get(slots, index)
         slot_i === slot && return index
@@ -339,13 +326,24 @@ function _find_slot(slots::Vector{UInt32}, key, slot, mask::Int)
     _find_slot(slots, key, convert(UInt32, slot), mask)
 end
 
-function try_delete!(s::OrderedSet, key)
+# `(true, index)` : successfully deleted from `index`
+# `(false, index)` : `value` not found. `slots[index]` was last attempt at finding it.
+function try_delete!(s::OrderedSet, val)
     values = _values(s)
     nvalues = length(values)
     slots = _slots(s)
     nslots = length(slots)
+    mask = nslots - 1
     Base.GC.@preserve values begin
-        out = _try_delete!(values, slots, key, _max_probe(s), nvalues, nslots)
+        flag, slot, index = _lookup(values, slots, _max_probe(s), mask, val, (reinterpret(Int, hash(val)) & mask) + 1)
+        if flag === 0x02
+            unsafe_set!(slots, index, EMPTY_SLOT)
+            _add_slots!(values, slots, Int(slot), nvalues, mask, -0x00000001)
+            unsafe_delete_at!(values, slot, 1)
+            out = (true, Int(slot))
+        else
+            out = (false, Int(slot))
+        end
     end
     return out
 end
@@ -355,7 +353,6 @@ function Base.sort!(s::OrderedSet; kwargs...)
     _apply_sortperm!(s, sortperm(s; kwargs...))
     return s
 end
-
 function _apply_sortperm!(s::OrderedSet, perm::Vector{Int})
     values = _values(s)
     slots = _slots(s)
@@ -369,5 +366,10 @@ function _apply_sortperm!(s::OrderedSet, perm::Vector{Int})
     end
     @inbounds values[inds] = values[perm]
     nothing
+end
+
+Base.copymutable(s::OrderedSet) = copy(s)
+function Base.emptymutable(s::OrderedSet{T,L,S}, ::Type{U}=T) where {T,U,L,S}
+    OrderedSet{U}(HashSettings{L,S}())
 end
 

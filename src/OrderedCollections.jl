@@ -41,5 +41,8 @@ defined order (such as `OrderedDict` and `SortedDict`), and `false` otherwise.
 isordered(::Type{T}) where {T<:AbstractDict} = false
 isordered(@nospecialize T::Type{<:OrderedDict}) = true
 isordered(@nospecialize T::Type{<:OrderedSet}) = true
+isordered(@nospecialize T::Type{<:LittleDict}) = true
+
+
 
 end

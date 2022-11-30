@@ -106,8 +106,6 @@ function freeze(dd::AbstractDict)
     return LittleDict(ks, vs)
 end
 
-isordered(::Type{<:LittleDict}) = true
-
 # For now these are internal UnionAlls for dispatch purposes
 const UnfrozenLittleDict{K,V} = LittleDict{K,V, Vector{K}, Vector{V}}
 const FrozenLittleDict{K,V} = LittleDict{K,V, <:Tuple, <:Tuple}

@@ -51,14 +51,14 @@ function try_insert_slot!(
     value,
     kloc::Int
 ) where {T,L,S}
-    mp = hs.max_probe
+    mp = _max_probe(hs)
     flag, slot, index = _lookup(values, slots, mp, mask, value, to_slot_index(try_convert(T, value), mask))
     if flag === 0x00
         # If value is not present, may need to increase max probe to find empty slot
         max_allowed = UInt8(max(return_uint8(L), mask >> return_uint8(S)))
         new_max_probe, index = _lookup_shift_max_probe(slots, mp, max_allowed, mask, index)
         if new_max_probe === max_allowed
-            newsz = next_slot_size(nslots)
+            newsz = 1<<(INT_SIZE-leading_zeros(nslots + nslots))
             unsafe_grow_end!(slots, newsz - nslots)
             i = nslots + 1
             while i <= newsz
@@ -67,12 +67,12 @@ function try_insert_slot!(
             end
             new_mask = newsz - 1
             Base.GC.@preserve values begin
-                hs.max_probe = _rehash!(values, slots, nvalues, mask, new_mask, hs.max_probe)
+                _max_probe!(hs, _rehash!(values, slots, nvalues, mask, new_mask, _max_probe(hs)))
             end
             try_insert_slot!(values, slots, hs, nvalues, newsz, new_mask, value, kloc)
             return (0x04, kloc)
         else
-            hs.max_probe = new_max_probe
+            _max_probe!(hs, new_max_probe)
             unsafe_set!(slots, index, kloc)
             return (0x03, kloc)
         end
@@ -83,35 +83,6 @@ function try_insert_slot!(
         return (0x02, Int(slot))
     end
 end
-
-# `(true, index)` : successfully deleted from `index`
-# `(false, index)` : `value` not found. `slots[index]` was last attempt at finding it.
-function _try_delete!(
-    values::Vector, slots::Vector{UInt32}, value, mp::UInt8,
-    nvalues::Int=length(values), nslots::Int=length(slots)
-)
-    mask = nslots - 1
-    flag, slot, index = _lookup(values, slots, mp, mask, value, to_slot_index(value, mask))
-    if flag === 0x02
-        unsafe_set!(slots, index, EMPTY_SLOT)
-        _add_slots!(values, slots, Int(slot), nvalues, mask, -0x00000001)
-        unsafe_delete_at!(values, slot, 1)
-        return (true, Int(slot))
-    else
-        return (false, Int(slot))
-    end
-end
-
-prev_slot_size(sz::Int) = sz>>1
-next_slot_size(sz::Int) = 1<<(INT_SIZE-leading_zeros(sz + sz))
-# function next_slot_size(sz::Int)
-#     (sz > 64000 ? 1 : 2) << (INT_SIZE - leading_zeros(sz + sz))
-# end
-
-# rehash if >= 3/4 full
-should_grow(nvalues::Int, nslots::Int) = nvalues >= (nslots >> 1) + (nslots >> 2)
-# rehash if > 3/4 deleted
-should_shrink(nvalues::Int, nslots::Int) = nvalues <= (nslots >> 3) + (nslots >> 4)
 
 # _add_slots!
 #
@@ -153,16 +124,17 @@ end
 function _maybe_grow_rehash!(
     hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
 )
-    if should_grow(nvalues, nslots)
-        newsz = next_slot_size(nslots)
+    if nvalues >= (nslots >> 1) + (nslots >> 2)  # rehash if >= 3/4 full
+        newsz = 1<<(INT_SIZE-leading_zeros(nslots + nslots))
         unsafe_grow_end!(slots, newsz - nslots)
         i = nslots + 1
         while i <= newsz
             unsafe_set!(slots, i, EMPTY_SLOT)
             i += 1
         end
+        new_mask = newsz - 1
         Base.GC.@preserve values begin
-            hs.max_probe = _rehash!(values, slots, nvalues, nslots-1, newsz - 1, hs.max_probe)
+            _max_probe!(hs, _rehash!(values, slots, nvalues, nslots-1, new_mask, _max_probe(hs)))
         end
     end
     nothing
@@ -170,10 +142,11 @@ end
 function _maybe_shrink_rehash!(
     hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
 )
-    if should_shrink(nvalues, nslots)
-        newsz = prev_slot_size(nslots)
+    if nvalues <= (nslots >> 3) + (nslots >> 4)  # rehash if > 3/4 deleted
+        newsz = nslots>>1
+        new_mask = newsz - 1
         Base.GC.@preserve values begin
-            hs.max_probe = _rehash!(values, slots, nvalues, nslots-1, newsz - 1, hs.max_probe)
+            _max_probe!(hs, _rehash!(values, slots, nvalues, nslots-1, new_mask, _max_probe(hs)))
         end
         unsafe_delete_end!(slots, nslots - newsz)
     end

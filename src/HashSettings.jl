@@ -11,6 +11,15 @@ end
 
 Base.copy(x::HashSettings{L,S}) where {L,S} = HashSettings{L,S}(getfield(x, :max_probe))
 
+_age(hs::HashSettings) = getfield(hs, :age)
+function increment_age!(hs::HashSettings)
+    setfield!(hs, :age, getfield(hs, :age) + 0x00000001)
+    nothing
+end
+
+_max_probe(hs::HashSettings) = getfield(hs, :max_probe)
+_max_probe!(hs::HashSettings, mp::UInt8) = setfield!(hs, :max_probe, mp)
+
 @inline function Base.getproperty(x::HashSettings{L,S}, s::Symbol) where {L,S}
     if s === :probe_limit
         return return_uint8(L)
