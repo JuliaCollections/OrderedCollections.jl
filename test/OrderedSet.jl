@@ -236,3 +236,12 @@ end
     @test collect(d) == collect('a':'z')
 end
 
+@testset "Sorting" begin
+    v = [Char(123-i) for i in 1:10]
+    s = OrderedSet(v)
+    @test sortperm(v) == sortperm(s)
+    sort!(v)
+    sort!(s)
+    @test collect(s) == v
+end
+

@@ -1,21 +1,12 @@
 # Sort for dicts
 import Base: sort, sort!
 
-Base.sortperm(s::OrderedSet; kwargs...) = sortperm(_values(s); kwargs...)
-
-
-
-
 function Base.sort!(d::OrderedDict; byvalue::Bool=false, kwargs...)
     ks = keys(d)
     vs = _values(d)
     perm = byvalue ? sortperm(vs; kwargs...) : sortperm(ks; kwargs...)
-    @inbounds vs[perm] = vs[perm]
-    ksvals = _values(ks)
-    @inbounds ksvals[perm] = ksvals[perm]
-    slots = _slots(ks)
-    mask = length(slots) - 1
-    _rehash!(ksvals, _slots(ks), length(ksvals), mask, mask, _settings(ks).max_probe)
+    _apply_sortperm!(ks, perm)
+    @inbounds vs[:] = vs[perm]
     return d
 end
 

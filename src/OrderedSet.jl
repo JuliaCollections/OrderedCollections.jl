@@ -16,6 +16,8 @@ struct OrderedSet{T,L,S} <: AbstractSet{T}
     OrderedSet(xs) = OrderedSet{eltype(xs)}(xs)
 end
 
+Base.collect(s::OrderedSet) = copy(_values(s))
+
 _slots(s::OrderedSet) = getfield(s, :slots)
 _values(s::OrderedSet) = getfield(s, :values)
 _settings(s::OrderedSet) = getfield(s, :settings)
@@ -324,41 +326,6 @@ function _find_slot(
     end
 end
 
-function _move_slot!(
-    slots::Vector{UInt32}, si0::Int, kloc::Int, old_mask::Int, new_mask::Int, mp::UInt8
-)
-    # 1. Slot removal loop exits if:
-    #   - slot corresponding to key location is found
-    #   - exceeds maximum probe (meaning it was previously overwritten by `_move_slot!`
-    #     on a lower key index.
-    sloc = next_slot_index(si0, old_mask)
-    itr = 0x00
-    while true
-        if unsafe_get(slots, sloc) == kloc
-            _set!(slots, sloc, EMPTY_SLOT)
-            break
-        end
-        sloc = next_slot_index(sloc, old_mask)
-        itr === mp && break
-        itr += 0x01
-    end
-    # 2. Slot filling loop replaces `slot_i` if:
-    #   - `slot_i` is empty
-    #   - `slot_i` corresponds to a key index would be erased in subsequent iterations
-    itr = 0x00
-    sloc = next_slot_index(si0, new_mask)
-    while true
-        slot_i = unsafe_get(slots, sloc)
-        if slot_i === EMPTY_SLOT || slot_i > kloc
-            _set!(slots, sloc, kloc)
-            break
-        end
-        sloc = next_slot_index(sloc, new_mask)
-        itr += 0x01
-    end
-    itr
-end
-
 function try_delete!(s::OrderedSet, key)
     values = _values(s)
     nvalues = length(values)
@@ -368,5 +335,26 @@ function try_delete!(s::OrderedSet, key)
         out = _try_delete!(values, slots, key, max_probe(s), nvalues, nslots)
     end
     return out
+end
+
+Base.sortperm(s::OrderedSet; kwargs...) = sortperm(_values(s); kwargs...)
+function Base.sort!(s::OrderedSet; kwargs...)
+    _apply_sortperm!(s, sortperm(s; kwargs...))
+    return s
+end
+
+function _apply_sortperm!(s::OrderedSet, perm::Vector{Int})
+    values = _values(s)
+    slots = _slots(s)
+    mp = max_probe(s)
+    mask = length(slots) - 1
+    inds = eachindex(perm)
+    for i in inds
+        value_i = unsafe_get(values, unsafe_get(perm, i))
+        _, _, index = _lookup(values, slots, mp, mask, value_i, to_slot_index(value_i, mask))
+        unsafe_set!(slots, index, i)
+    end
+    @inbounds values[inds] = values[perm]
+    nothing
 end
 

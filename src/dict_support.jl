@@ -270,3 +270,42 @@ function try_insert_slot!(
     return try_insert_slot!(values, slots, hs, length(slots) - 1, key, kloc)
 end
 
+function unsafe_empty_slot!(slots::Vector{UInt32}, i::Int, slot, mp::UInt8, mask::Int)
+    itr = 0x00
+    while true
+        if unsafe_get(slots, i) == slot
+            unsafe_set!(slots, i, EMPTY_SLOT)
+            break
+        end
+        i = (i & mask) + 1
+        itr === mp && break
+        itr += 0x01
+    end
+    return nothing
+end
+
+function _move_slot!(
+    slots::Vector{UInt32}, si0::Int, kloc::Int, old_mask::Int, new_mask::Int, mp::UInt8
+)
+    # 1. Slot removal loop exits if:
+    #   - slot corresponding to key location is found
+    #   - exceeds maximum probe (meaning it was previously overwritten by `_move_slot!`
+    #     on a lower key index.
+    unsafe_empty_slot!(slots, (si0 & old_mask) + 1, kloc, mp, old_mask)
+    # 2. Slot filling loop replaces `slot_i` if:
+    #   - `slot_i` is empty
+    #   - `slot_i` corresponds to a key index would be erased in subsequent iterations
+    itr = 0x00
+    sloc = next_slot_index(si0, new_mask)
+    while true
+        slot_i = unsafe_get(slots, sloc)
+        if slot_i === EMPTY_SLOT || slot_i > kloc
+            _set!(slots, sloc, kloc)
+            break
+        end
+        sloc = next_slot_index(sloc, new_mask)
+        itr += 0x01
+    end
+    itr
+end
+
