@@ -95,7 +95,7 @@ function Base.last(d::OrderedDict{K,V}) where {K,V}
     ks = keys(d)
     n = length(ks)
     key = _values(ks)[n]
-    val = _get(_values(d), n)
+    val = unsafe_get(_values(d), n)
     return Pair{K,V}(key, val)
 end
 
@@ -103,14 +103,14 @@ function Base.iterate(d::OrderedDict{K,V}) where {K,V}
     if length(d) === 0
         return nothing
     else
-        return (Pair{K,V}(_get(_values(keys(d)), 1), unsafe_get(_values(d), 1)), 2)
+        return (Pair{K,V}(unsafe_get(_values(keys(d)), 1), unsafe_get(_values(d), 1)), 2)
     end
 end
 function Base.iterate(d::OrderedDict{K,V}, i::Int) where {K,V}
     if i > length(d)
         return nothing
     else
-        return (Pair{K,V}(_get(_values(keys(d)), i), unsafe_get(_values(d), i)), i + 1)
+        return (Pair{K,V}(unsafe_get(_values(keys(d)), i), unsafe_get(_values(d), i)), i + 1)
     end
 end
 function Base.iterate(d::OrderedValues)
@@ -145,16 +145,16 @@ end
 
 function Base.get(d::OrderedDict, key, default)
     flag, index = lookup(keys(d), key)
-    flag === 0x02 ? _get(_values(d), index) : default
+    flag === 0x02 ? unsafe_get(_values(d), index) : default
 end
 function Base.get(default::Base.Callable, d::OrderedDict, key)
     flag, index = lookup(keys(d), key)
-    flag === 0x02 ? _get(_values(d), index) : default()
+    flag === 0x02 ? unsafe_get(_values(d), index) : default()
 end
 
 function Base.get!(d::OrderedDict{K}, key, default) where {K}
     s = keys(d)
-    age = s.age
+    age = _age(s)
     out = _get!(d, try_convert(K, key), default)
     @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
@@ -178,7 +178,7 @@ function _get!(d::OrderedDict, key, default)
     mask = nslots - 1
     nkplus = nkeys + 1
     vs = _values(d)
-    flag, idx = try_insert_slot2!(ks, slots, hs, nkeys, nslots, mask, key, nkplus)
+    flag, idx = try_insert_slot!(ks, slots, hs, nkeys, nslots, mask, key, nkplus)
     if flag === 0x02
         return unsafe_get(vs, idx)
     else
@@ -200,7 +200,7 @@ function _get!(f::Union{Type,Function}, d::OrderedDict, key)
     mask = nslots - 1
     nkplus = nkeys + 1
     vs = _values(d)
-    flag, idx = try_insert_slot2!(ks, slots, hs, nkeys, nslots, mask, key, nkplus)
+    flag, idx = try_insert_slot!(ks, slots, hs, nkeys, nslots, mask, key, nkplus)
     if flag === 0x02
         return unsafe_get(vs, idx)
     else
@@ -310,13 +310,13 @@ function Base.showarg(io::IO, s::OrderedDict, toplevel::Bool)
     print(io, "OrderedSet{$(keytype(s)), $(valtype(s))}")
 end
 
-#=
-function Base.show(io::IO, s::OrderedDict)
-    Base.showarg(io, s, true)
-    print(io, "(")
-    !isempty(s) && Base.show_vector(io, s,'[',']')
-    print(io, ")")
+function Base.sort!(d::OrderedDict; byvalue::Bool=false, kwargs...)
+    ks = keys(d)
+    vs = _values(d)
+    perm = byvalue ? sortperm(vs; kwargs...) : sortperm(ks; kwargs...)
+    _apply_sortperm!(ks, perm)
+    @inbounds vs[:] = vs[perm]
+    return d
 end
-=#
 
-
+Base.sort(d::OrderedDict; kwargs...) = sort!(copy(d); kwargs...)

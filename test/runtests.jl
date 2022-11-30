@@ -10,6 +10,10 @@ end
 @testset "OrderedDict" begin
     include("OrderedDict.jl")
 end
+@testset "LittleDict" begin
+    include("LittleDict.jl")
+end
+
 
 
 #=

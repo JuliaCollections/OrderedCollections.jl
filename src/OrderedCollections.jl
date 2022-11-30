@@ -10,7 +10,6 @@ import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
              first, last, eltype, getkey, values, sum,
              merge, merge!, lt, Ordering, ForwardOrdering, Forward,
              ReverseOrdering, Reverse, Lt,
-             isless,
              union, intersect, symdiff, setdiff, setdiff!, issubset,
              searchsortedfirst, searchsortedlast, in,
              filter, filter!, ValueIterator, eachindex, keytype,
@@ -20,12 +19,18 @@ import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
 export OrderedDict, OrderedSet, LittleDict
 export freeze
 
+const EMPTY_SLOT = 0x00000000
+const MAX_VALUES = typemax(UInt32) >> 1
+const INT_SIZE = sizeof(Int) * 8
+const StoreType = Union{<:Tuple, <:Vector}
+
 include("HashSettings.jl")
 include("dict_support.jl")
-include("little_dict.jl")
+include("LittleSet.jl")
+include("LittleDict.jl")
 include("OrderedSet.jl")
 include("OrderedDict.jl")
-include("dict_sorting.jl")
+include("utils.jl")
 
 """
     isordered(::Type)
@@ -36,9 +41,5 @@ defined order (such as `OrderedDict` and `SortedDict`), and `false` otherwise.
 isordered(::Type{T}) where {T<:AbstractDict} = false
 isordered(@nospecialize T::Type{<:OrderedDict}) = true
 isordered(@nospecialize T::Type{<:OrderedSet}) = true
-
-import Base: similar
-@deprecate similar(d::OrderedDict) empty(d)
-@deprecate similar(s::OrderedSet) empty(s)
 
 end

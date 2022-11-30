@@ -1,4 +1,3 @@
-const StoreType = Union{<:Tuple, <:Vector}
 
 """
     LittleDict(keys, vals)<:AbstractDict
@@ -143,7 +142,7 @@ function Base.get(dd::LittleDict, key, default)
     end
     return default
 end
-function get(default::Base.Callable, dd::LittleDict, key)
+function Base.get(default::Base.Callable, dd::LittleDict, key)
     got = get(dd, key, NotFoundSentinel())
     if got isa NotFoundSentinel  # not found
         return default()
@@ -157,11 +156,11 @@ function Base.iterate(dd::LittleDict, ii=1)
     return (dd.keys[ii] => dd.vals[ii], ii+1)
 end
 
-function merge(d1::LittleDict, others::AbstractDict...)
-    return merge((x,y)->y, d1, others...)
+function Base.merge(d1::LittleDict, others::AbstractDict...)
+    merge((x,y)->y, d1, others...)
 end
 
-function merge(
+function Base.merge(
     combine::Function,
     d::LittleDict,
     others::AbstractDict...
@@ -255,7 +254,7 @@ end
 
 Base.empty!(dd::UnfrozenLittleDict) = (empty!(dd.keys); empty!(dd.vals); dd)
 
-function get!(default::Base.Callable, dd::UnfrozenLittleDict, key)
+function Base.get!(default::Base.Callable, dd::UnfrozenLittleDict, key)
     got = get(dd, key, NotFoundSentinel())
     if got isa NotFoundSentinel  # not found
         val = default()
@@ -265,4 +264,9 @@ function get!(default::Base.Callable, dd::UnfrozenLittleDict, key)
         return got
     end
 end
-get!(dd::UnfrozenLittleDict, key, default) = get!(()->default, dd, key)
+Base.get!(dd::UnfrozenLittleDict, key, default) = get!(()->default, dd, key)
+
+function Base.sort(d::LittleDict; byvalue::Bool=false, kwargs...)
+    p = byvalue ? sortperm(d.vals; kwargs...) : sortperm(d.keys; kwargs...)
+    return LittleDict(d.keys[p], d.vals[p])
+end

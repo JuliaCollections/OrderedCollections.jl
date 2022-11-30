@@ -21,6 +21,8 @@ Base.collect(s::OrderedSet) = copy(_values(s))
 _slots(s::OrderedSet) = getfield(s, :slots)
 _values(s::OrderedSet) = getfield(s, :values)
 _settings(s::OrderedSet) = getfield(s, :settings)
+_age(s::OrderedSet) = getfield(getfield(s, :settings), :age)
+_max_probe(s::OrderedSet) = getfield(getfield(s, :settings), :max_probe)
 function increment_age!(s::OrderedSet)
     x = _settings(s)
     setfield!(x, :age, getfield(x, :age) + 0x00000001)
@@ -31,7 +33,6 @@ function assert_age(s::OrderedSet, age::UInt32)
     nothing
 end
 
-
 function Base.getproperty(s::OrderedSet, sym::Symbol)
     getproperty(getfield(s, :settings), sym)
 end
@@ -41,13 +42,19 @@ end
 Base.propertynames(s::OrderedSet) = propertynames(getfield(s, :settings))
 
 Base.firstindex(::OrderedSet) = 1
+
 Base.lastindex(s::OrderedSet) = length(s)
+
+function Base.getindex(s::OrderedSet, i::Int)
+    @boundscheck (1 <= i && i <= length(s)) || throw(BoundsError(s, i))
+    unsafe_get(_values(s), i)
+end
 
 Base.sizehint!(s::OrderedSet, newsz) = sizehint!(s, Int(newsz))
 function Base.sizehint!(s::OrderedSet, newsz::Int)
-    age = s.age
+    age = _age(s)
     _sizehint!(s, newsz)
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     return s
 end
 function _sizehint!(s::OrderedSet, sz::Int)
@@ -89,17 +96,18 @@ Base.in(value, s::OrderedSet{T}) where {T} = in(try_convert(T, value), s)
 function Base.in(value::T, s::OrderedSet{T}) where {T}
     slots = _slots(s)
     mask = length(slots) - 1
-    getfield(_lookup(_values(s), slots, s.max_probe, mask, value, to_slot_index(value, mask)), 1) === 0x02
+    getfield(_lookup(_values(s), slots, _max_probe(s), mask, value, to_slot_index(value, mask)), 1) === 0x02
 end
+
 
 function lookup(s::OrderedSet{T}, value) where {T}
     slots = _slots(s)
     mask = length(slots) - 1
-    _lookup(_values(s), slots, s.max_probe, mask, value, to_slot_index(value, mask))
+    _lookup(_values(s), slots, _max_probe(s), mask, value, to_slot_index(value, mask))
 end
 
 function Base.pop!(s::OrderedSet)
-    age = s.age
+    age = _age(s)
     values = _values(s)
     nvalues = length(values)
     nvalues > 0 || throw(ArgumentError("Cannot delete from empty set."))
@@ -110,12 +118,12 @@ function Base.pop!(s::OrderedSet)
     unsafe_set!(slots, _find_slot(slots, key, nvalues, mask), EMPTY_SLOT)
     unsafe_delete_end!(values, 1)
     _maybe_shrink_rehash!(_settings(s), values, slots, nslots, nvalues-1)
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return key
 end
 function Base.popfirst!(s::OrderedSet)
-    age = s.age
+    age = _age(s)
     values = _values(s)
     nvalues = length(values)
     nvalues > 0 || throw(ArgumentError("Cannot delete from empty set."))
@@ -127,42 +135,41 @@ function Base.popfirst!(s::OrderedSet)
     _add_slots!(values, slots, 1, nvalues, mask, -0x00000001)
     unsafe_delete_beg!(values, 1)
     _maybe_shrink_rehash!(_settings(s), values, slots, nslots, nvalues-1)
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return key
 end
 function Base.pop!(s::OrderedSet, key)
-    age = s.age
+    age = _age(s)
     success, _ = try_delete!(s, key)
     success || throw(KeyError(key))
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return key
 end
 function Base.pop!(s::OrderedSet, key, default)
-    age = s.age
+    age = _age(s)
     success, _ = try_delete!(s, key)
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     success ? key : default
 end
-
 function Base.delete!(s::OrderedSet, key)
-    age = s.age
+    age = _age(s)
     try_delete!(s, key)
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
 
 function Base.empty!(s::OrderedSet)
-    age = s.age
+    age = _age(s)
     slots = _slots(s)
     for i in eachindex(slots)
         unsafe_set!(slots, i, EMPTY_SLOT)
     end
     empty!(_values(s))
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
@@ -174,12 +181,12 @@ function Base.filter!(f, s::OrderedSet)
     nslots = length(slots)
     mask = nslots - 1
     kloc = 1
-    age = s.age
+    age = _age(s)
     while kloc <= nvalues
         key = unsafe_get(values, kloc)
         #print(stdout, "index: $(kloc), length: $(nvalues), key: $(key)\n")
         if !return_bool(f(key))
-            _set!(slots, _find_slot(slots, key, kloc, mask), EMPTY_SLOT)
+            unsafe_set!(slots, _find_slot(slots, key, kloc, mask), EMPTY_SLOT)
             _add_slots!(values, slots, kloc, nvalues, mask, -0x00000001)
             unsafe_delete_at!(values, kloc, 1)
             nvalues -= 1
@@ -189,15 +196,15 @@ function Base.filter!(f, s::OrderedSet)
         #print(stdout, "index: $(kloc), length: $(nvalues), key: $(key)\n\n")
     end
     _maybe_shrink_rehash!(_settings(s), values, slots, nslots, nvalues)
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
 
 function Base.push!(s::OrderedSet{T}, key) where {T}
-    age = s.age
+    age = _age(s)
     try_push!(s, try_convert(T, key))
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
@@ -210,22 +217,22 @@ function try_push!(s::OrderedSet, key)
     nkplus = nvalues + 1
     nslots = length(slots)
     mask = nslots - 1
-    flag, idx = try_insert_slot2!(values, slots, hs, nvalues, nslots, mask, key, nkplus)
+    flag, idx = try_insert_slot!(values, slots, hs, nvalues, nslots, mask, key, nkplus)
     #idx = try_insert_slot!(values, slots, hs, mask, key, nkplus)
     if flag === 0x02
         return false, idx
     else
         unsafe_grow_end!(values, 1)
-        _set!(values, nkplus, key)
+        unsafe_set!(values, nkplus, key)
         flag === 0x01 && _maybe_grow_rehash!(hs, values, slots, nslots, nkplus)
         return true, nkplus
     end
 end
 
 function Base.insert!(s::OrderedSet{T}, i::Int, key) where {T}
-    age = s.age
+    age = _age(s)
     try_insert!(s, i, try_convert(T, key))
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
@@ -236,10 +243,10 @@ function try_insert!(s::OrderedSet, i::Int, key)
     nvalues = length(values)
     nslots = length(slots)
     mask = nslots - 1
-    flag, index = try_insert_slot2!(values, slots, hs, mask, key, i)
+    flag, idx = try_insert_slot!(values, slots, hs, nvalues, nslots, mask, key, i)
     if idx === 0
         unsafe_grow_at!(values, i, 1)
-        _set!(values, i, key)
+        unsafe_set!(values, i, key)
         _maybe_grow_rehash!(hs, values, slots, nslots, nvalues + 1)
         return true, index
     else
@@ -248,9 +255,9 @@ function try_insert!(s::OrderedSet, i::Int, key)
 end
 
 function Base.pushfirst!(s::OrderedSet{T}, key) where {T}
-    age = s.age
+    age = _age(s)
     try_pushfirst!(s, try_convert(T, key))
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
@@ -263,8 +270,8 @@ function try_pushfirst!(s::OrderedSet, key)
     mask = nslots - 1
     idx = try_insert_slot!(values, slots, hs, mask, key, 1)
     if idx === 0
-        _growbeg!(values, 1)
-        _set!(values, 1, key)
+        unsafe_grow_beg!(values, 1)
+        unsafe_set!(values, 1, key)
         _maybe_grow_rehash!(hs, values, slots, nslots, nvalues + 1)
         return true
     else
@@ -272,7 +279,7 @@ function try_pushfirst!(s::OrderedSet, key)
     end
 end
 function Base.union!(s::OrderedSet{T}, itr) where {T}
-    age = s.age
+    age = _age(s)
     if Base.haslength(itr)
         _sizehint!(s, length(s) + return_int(length(itr)))
     end
@@ -280,7 +287,7 @@ function Base.union!(s::OrderedSet{T}, itr) where {T}
         try_push!(s, try_convert(T, x))
         length(s) === MAX_VALUES && break
     end
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
@@ -290,11 +297,11 @@ end
 #    intersect!(s, union!(emptymutable(s, eltype(itr)), itr))
 
 function Base.setdiff!(s::OrderedSet, itr)
-    age = s.age
+    age = _age(s)
     for x in itr
         try_delete!(s, x)
     end
-    @assert s.age === age "Multiple concurrent writes to OrderedSet detected!"
+    @assert _age(s) === age "Multiple concurrent writes to OrderedSet detected!"
     increment_age!(s)
     return s
 end
@@ -316,18 +323,20 @@ function Base.show(io::IO, s::OrderedSet)
 end
 
 #region slot-utilities
-to_slot_index(key, mask) = (reinterpret(Int, hash(key)) & mask) + 1
-next_slot_index(index::Int, mask::Int) = (index & mask) + 1
+to_slot_index(key, mask::Int) = (reinterpret(Int, hash(key)) & mask) + 1
 # we know kloc exists in slots and need to replace it with an empty slot value
 function _find_slot(
-    slots::Vector{UInt32}, key, kloc::Int, mask::Int
+    slots::Vector{UInt32}, key, slot::UInt32, mask::Int
 )
     index = to_slot_index(key, mask)
     while true
         slot_i = unsafe_get(slots, index)
-        slot_i == kloc && return index
-        index = next_slot_index(index, mask)
+        slot_i === slot && return index
+        index = (index & mask) + 1
     end
+end
+function _find_slot(slots::Vector{UInt32}, key, slot, mask::Int)
+    _find_slot(slots, key, convert(UInt32, slot), mask)
 end
 
 function try_delete!(s::OrderedSet, key)
@@ -336,7 +345,7 @@ function try_delete!(s::OrderedSet, key)
     slots = _slots(s)
     nslots = length(slots)
     Base.GC.@preserve values begin
-        out = _try_delete!(values, slots, key, s.max_probe, nvalues, nslots)
+        out = _try_delete!(values, slots, key, _max_probe(s), nvalues, nslots)
     end
     return out
 end
@@ -350,7 +359,7 @@ end
 function _apply_sortperm!(s::OrderedSet, perm::Vector{Int})
     values = _values(s)
     slots = _slots(s)
-    mp = s.max_probe
+    mp = _max_probe(s)
     mask = length(slots) - 1
     inds = eachindex(perm)
     for i in inds
