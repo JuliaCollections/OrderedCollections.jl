@@ -1,8 +1,23 @@
 
+# increase number of slots to next size and set each value to zero
+@inline next_slots_size(nslots::Int) = 1<<(INT_SIZE-leading_zeros(nslots + nslots))
+@assume_effects :terminates_locally function _grow_slots!(slots::Vector{UInt32}, nslots::Int)
+    newsz = next_slots_size(nslots)
+    unsafe_grow_end!(slots, newsz - nslots)
+    i = nslots
+    while true
+        i += 1
+        i > newsz && break
+        unsafe_set!(slots, i, EMPTY_SLOT)
+    end
+    return newsz
+end
+
+
 # `(0x00, slot_i, index)` : did not find `value`. `index` was last attempt before exceeding max probe
 # `(0x01, slot_i, index)` : did not find `value`. `index` is an empty slot where new index for `value` can be set
 # `(0x02, slot_i, index)` : found `values[slots[index]] == value`
-function _lookup(
+@assume_effects :terminates_locally function _lookup(
     values::Vector{T}, slots::Vector{UInt32}, max_probe::UInt8, mask::Int, value, i0::Int
 ) where {T}
     itr = 0x00
@@ -25,7 +40,7 @@ function _lookup(
     end
 end
 
-function _lookup_shift_max_probe(
+@assume_effects :terminates_locally function _lookup_shift_max_probe(
     slots::Vector{UInt32}, itr::UInt8, max_allowed::UInt8, mask::Int, i::Int,
 )
     while true
@@ -58,13 +73,7 @@ function try_insert_slot!(
         max_allowed = UInt8(max(return_uint8(L), mask >> return_uint8(S)))
         new_max_probe, index = _lookup_shift_max_probe(slots, mp, max_allowed, mask, index)
         if new_max_probe === max_allowed
-            newsz = 1<<(INT_SIZE-leading_zeros(nslots + nslots))
-            unsafe_grow_end!(slots, newsz - nslots)
-            i = nslots + 1
-            while i <= newsz
-                unsafe_set!(slots, i, EMPTY_SLOT)
-                i += 1
-            end
+            newsz = _grow_slots!(slots, nslots)
             new_mask = newsz - 1
             Base.GC.@preserve values begin
                 _max_probe!(hs, _rehash!(values, slots, nvalues, mask, new_mask, _max_probe(hs)))
@@ -88,7 +97,7 @@ end
 #
 # when pushing or deleting a value, all subsequent value's corresponding slots need to be
 # added or subtracted by 1.
-function _add_slots!(
+@assume_effects :terminates_locally function _add_slots!(
     values::Vector, slots::Vector{UInt32}, previ::Int, stop::Int, mask::Int, x::UInt32
 )
     i = previ + 1
@@ -125,14 +134,7 @@ function _maybe_grow_rehash!(
     hs::HashSettings, values::Vector, slots::Vector{UInt32}, nslots::Int, nvalues::Int,
 )
     if nvalues >= (nslots >> 1) + (nslots >> 2)  # rehash if >= 3/4 full
-        newsz = 1<<(INT_SIZE-leading_zeros(nslots + nslots))
-        unsafe_grow_end!(slots, newsz - nslots)
-        i = nslots + 1
-        while i <= newsz
-            unsafe_set!(slots, i, EMPTY_SLOT)
-            i += 1
-        end
-        new_mask = newsz - 1
+        new_mask = _grow_slots!(slots, nslots) - 1
         Base.GC.@preserve values begin
             _max_probe!(hs, _rehash!(values, slots, nvalues, nslots-1, new_mask, _max_probe(hs)))
         end
@@ -153,7 +155,9 @@ function _maybe_shrink_rehash!(
     nothing
 end
 
-function unsafe_empty_slot!(slots::Vector{UInt32}, i::Int, slot, mp::UInt8, mask::Int)
+@assume_effects :terminates_locally function unsafe_empty_slot!(
+    slots::Vector{UInt32}, i::Int, slot, mp::UInt8, mask::Int
+)
     itr = 0x00
     while true
         if unsafe_get(slots, i) == slot
@@ -167,7 +171,7 @@ function unsafe_empty_slot!(slots::Vector{UInt32}, i::Int, slot, mp::UInt8, mask
     return nothing
 end
 
-function _move_slot!(
+@assume_effects :terminates_locally function _move_slot!(
     slots::Vector{UInt32}, si0::Int, kloc::Int, old_mask::Int, new_mask::Int, mp::UInt8
 )
     # 1. Slot removal loop exits if:

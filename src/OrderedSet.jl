@@ -22,19 +22,19 @@ _slots(s::OrderedSet) = getfield(s, :slots)
 _values(s::OrderedSet) = getfield(s, :values)
 _settings(s::OrderedSet) = getfield(s, :settings)
 
-_max_probe(s::OrderedSet) = getfield(getfield(s, :settings), :max_probe)
-_max_probe!(s::OrderedSet, mp::UInt8) = _max_probe!(getfield(s, :settings), mp)
+_max_probe(s::OrderedSet) = getfield(_settings(s), :max_probe)
+_max_probe!(s::OrderedSet, mp::UInt8) = _max_probe!(_settings(s), mp)
 
-_age(s::OrderedSet) = _age(getfield(s, :settings))
-increment_age!(s::OrderedSet) = increment_age!(getfield(s, :settings))
+_age(s::OrderedSet) = _age(_settings(s))
+increment_age!(s::OrderedSet) = increment_age!(_settings(s))
 
 function Base.propertynames(s::OrderedSet, private::Bool=false)
     private ? (:values, :slots, :settings) : ()
 end
 
 Base.firstindex(::OrderedSet) = 1
-
 Base.lastindex(s::OrderedSet) = length(s)
+Base.eachindex(s::OrderedSet) = Base.OneTo(length(s))
 
 function Base.getindex(s::OrderedSet, i::Int)
     @boundscheck (1 <= i && i <= length(s)) || throw(BoundsError(s, i))
@@ -84,10 +84,40 @@ function Base.iterate(s::OrderedSet, i::Int)
 end
 
 Base.in(value, s::OrderedSet{T}) where {T} = in(try_convert(T, value), s)
-function Base.in(value::T, s::OrderedSet{T}) where {T}
+Base.in(value::T, s::OrderedSet{T}) where {T} = find_index(s, value) !== -1
+
+@assume_effects :terminates_locally function find_slot(s::OrderedSet, value)
+    values = _values(s)
     slots = _slots(s)
     mask = length(slots) - 1
-    getfield(_lookup(_values(s), slots, _max_probe(s), mask, value, to_slot_index(value, mask)), 1) === 0x02
+    mp = _max_probe(s)
+    itr = 0x00
+    i = (reinterpret(Int, hash(value)) & mask) + 1
+    while true
+        slot_i = unsafe_get(slots, i)
+        slot_i !== EMPTY_SLOT && (unsafe_get(values, slot_i) == value) && return i
+        itr === mp && return -1
+        itr += 0x01
+        i = (i & mask) + 1
+    end
+end
+@assume_effects :terminates_locally function find_index(s::OrderedSet, value)
+    values = _values(s)
+    slots = _slots(s)
+    mask = length(slots) - 1
+    mp = _max_probe(s)
+    itr = 0x00
+    i = (reinterpret(Int, hash(value)) & mask) + 1
+    while true
+        slot_i = unsafe_get(slots, i)
+        if slot_i !== EMPTY_SLOT
+            index = Int(slot_i)
+            unsafe_get(values, index) == value && return index
+        end
+        itr === mp && return -1
+        itr += 0x01
+        i = (i & mask) + 1
+    end
 end
 
 function lookup(s::OrderedSet{T}, value) where {T}
@@ -312,7 +342,7 @@ end
 
 to_slot_index(key, mask::Int) = (reinterpret(Int, hash(key)) & mask) + 1
 # we know kloc exists in slots and need to replace it with an empty slot value
-function _find_slot(
+@assume_effects :terminates_locally function _find_slot(
     slots::Vector{UInt32}, val, slot::UInt32, mask::Int
 )
     index = (reinterpret(Int, hash(val)) & mask) + 1

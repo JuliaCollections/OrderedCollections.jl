@@ -3,7 +3,7 @@ mutable struct HashSettings{L,S}
     max_probe::UInt8
     age::UInt32
 
-    function HashSettings{L,S}(max_probe::UInt8) where {L,S}
+    function HashSettings{L,S}(max_probe::UInt8=0x00) where {L,S}
         new{L,S}(max_probe, 0x00000000)
     end
     HashSettings() = HashSettings{0x10,0x06}(0x00)
@@ -13,7 +13,7 @@ Base.copy(x::HashSettings{L,S}) where {L,S} = HashSettings{L,S}(getfield(x, :max
 
 _age(hs::HashSettings) = getfield(hs, :age)
 function increment_age!(hs::HashSettings)
-    setfield!(hs, :age, getfield(hs, :age) + 0x00000001)
+    setfield!(hs, :age, _age(hs) + 0x00000001)
     nothing
 end
 

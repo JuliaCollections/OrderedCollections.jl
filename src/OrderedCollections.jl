@@ -1,5 +1,7 @@
 module OrderedCollections
 
+import Compat: @assume_effects
+
 import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
              show, dump, empty!, getindex, setindex!, get, get!,
              in, haskey, keys, merge, copy, cat,
@@ -16,7 +18,7 @@ import Base: <, <=, ==, convert, length, isempty, iterate, delete!,
              valtype, lastindex, nextind,
              copymutable, emptymutable, dict_with_eltype
 
-export OrderedDict, OrderedSet, LittleDict
+export OrderedDict, OrderedSet, LazyOrderedSet, LittleDict
 export freeze
 
 const EMPTY_SLOT = 0x00000000
@@ -26,7 +28,7 @@ const StoreType = Union{<:Tuple, <:Vector}
 
 include("HashSettings.jl")
 include("dict_support.jl")
-include("LittleSet.jl")
+include("LazyOrderedSet.jl")
 include("LittleDict.jl")
 include("OrderedSet.jl")
 include("OrderedDict.jl")
