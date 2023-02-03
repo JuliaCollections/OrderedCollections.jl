@@ -107,7 +107,6 @@ function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
     end
     return h
 end
-convert(::Type{OrderedDict{K,V}},d::OrderedDict{K,V}) where {K,V} = d
 
 isslotempty(slot_value::Integer) = slot_value == 0
 isslotfilled(slot_value::Integer) = slot_value > 0
