@@ -3,6 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
+        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), 0, 0, false)), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
         @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict([("a",1),("b",2)])), OrderedDict{String,Int})

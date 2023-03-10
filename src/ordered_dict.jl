@@ -17,37 +17,39 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     ndel::Int
     maxprobe::Int
     dirty::Bool
-
-    function OrderedDict{K,V}(slots, keys, vals, ndel, maxprobe, dirty) where {K,V}
-        new{K,V}(slots, keys, vals, ndel, maxprobe, dirty)
-    end
-    function OrderedDict{K,V}() where {K,V}
-        OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
-    end
-    function OrderedDict{K,V}(kv) where {K,V}
-        h = OrderedDict{K,V}()
-        for (k,v) in kv
-            h[k] = v
-        end
-        return h
-    end
-    OrderedDict{K,V}(p::Pair) where {K,V} = setindex!(OrderedDict{K,V}(), p.second, p.first)
-    function OrderedDict{K,V}(ps::Pair...) where {K,V}
-        h = OrderedDict{K,V}()
-        sizehint!(h, length(ps))
-        for p in ps
-            h[p.first] = p.second
-        end
-        return h
-    end
-    function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
-        if d.ndel > 0
-            rehash!(d)
-        end
-        @assert d.ndel == 0
-        OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
-    end
 end
+
+function OrderedDict{K,V}() where {K,V}
+    OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
+end
+
+function OrderedDict{K,V}(kv) where {K,V}
+    h = OrderedDict{K,V}()
+    for (k,v) in kv
+        h[k] = v
+    end
+    return h
+end
+
+OrderedDict{K,V}(p::Pair) where {K,V} = setindex!(OrderedDict{K,V}(), p.second, p.first)
+
+function OrderedDict{K,V}(ps::Pair...) where {K,V}
+    h = OrderedDict{K,V}()
+    sizehint!(h, length(ps))
+    for p in ps
+        h[p.first] = p.second
+    end
+    return h
+end
+
+function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
+    if d.ndel > 0
+        rehash!(d)
+    end
+    @assert d.ndel == 0
+    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
+end
+
 OrderedDict() = OrderedDict{Any,Any}()
 OrderedDict(kv::Tuple{}) = OrderedDict()
 copy(d::OrderedDict) = OrderedDict(d)
