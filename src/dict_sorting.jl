@@ -6,11 +6,13 @@ function sort!(d::OrderedDict; byvalue::Bool=false, args...)
         rehash!(d)
     end
 
-    if byvalue
-        p = sortperm(d.vals; args...)
-    else
-        p = sortperm(d.keys; args...)
-    end
+    data = byvalue ? d.vals : d.keys
+
+    # Filter out the kwargs supported by issorted (notably, :alg needs to be removed)
+    issorted_kw = NamedTuple(k => v for (k, v) in args if k in (:lt, :by, :rev, :order))
+    issorted(data; issorted_kw...) && return d
+
+    p = sortperm(data; args...)
     d.keys = d.keys[p]
     d.vals = d.vals[p]
     rehash!(d)
