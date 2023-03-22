@@ -6,9 +6,18 @@
 struct OrderedSet{T}  <: AbstractSet{T}
     dict::OrderedDict{T,Nothing}
 
-    OrderedSet{T}() where {T} = new{T}(OrderedDict{T,Nothing}())
-    OrderedSet{T}(xs) where {T} = union!(new{T}(OrderedDict{T,Nothing}()), xs)
+    function OrderedSet{T}(s::Base.KeySet{T, <:OrderedDict{T}}) where {T}
+        d = s.dict
+        slots = copy(d.slots)
+        keys = copy(d.keys)
+        vals = similar(d.vals, Nothing)
+        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, d.ndel, d.maxprobe, d.dirty))
+    end
 end
+
+OrderedSet{T}() where {T} = OrderedSet{T}(keys(OrderedDict{T,Nothing}()))
+OrderedSet{T}(xs) where {T} = union!(OrderedSet{T}(), xs)
+
 OrderedSet() = OrderedSet{Any}()
 OrderedSet(xs) = OrderedSet{eltype(xs)}(xs)
 
