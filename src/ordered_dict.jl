@@ -98,6 +98,7 @@ isordered(::Type{T}) where {T<:OrderedDict} = true
 
 # conversion between OrderedDict types
 function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
+    d isa OrderedDict{K, V} && return d
     if !isordered(typeof(d))
         Base.depwarn("Conversion to OrderedDict is deprecated for unordered associative containers (in this case, $(typeof(d))). Use an ordered or sorted associative type, such as SortedDict and OrderedDict.", :convert)
     end
@@ -112,7 +113,6 @@ function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
     end
     return h
 end
-convert(::Type{OrderedDict{K,V}},d::OrderedDict{K,V}) where {K,V} = d
 
 isslotempty(slot_value::Integer) = slot_value == 0
 isslotfilled(slot_value::Integer) = slot_value > 0
