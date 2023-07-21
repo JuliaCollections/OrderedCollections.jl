@@ -241,4 +241,22 @@ using OrderedCollections, Test
         @test collect(d) == collect('a':'z')
     end
 
+    @testset "sort(!)" begin
+        x = [-4, 1, -5, 10, 7]
+        ox = OrderedSet(x)
+        @test !issorted(ox)
+        sox = sort(ox)
+        @test issorted(sox)
+        sox = sort(ox; rev=true)
+        @test !issorted(sox)
+        @test issorted(sox; rev=true)
+        ox = OrderedSet(x)
+        @test ox === sort!(ox)
+        @test issorted(ox)
+        ox = OrderedSet(x)
+        @test ox === sort!(ox; rev=true)
+        @test !issorted(ox)
+        @test issorted(ox; rev=true)
+    end
+
 end # @testset OrderedSet
