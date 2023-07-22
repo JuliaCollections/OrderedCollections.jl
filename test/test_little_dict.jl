@@ -39,6 +39,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
     end
 
     @testset "Constructors" begin
+        @test isa(@inferred(LittleDict{Any, Any, <:Tuple, <:Tuple}()), LittleDict{Any, Any, Tuple{}, Tuple{}})
         @test isa(@inferred(LittleDict()), LittleDict{Any,Any})
         @test isa(@inferred(LittleDict([(1,2.0)])), LittleDict{Int,Float64})
 
