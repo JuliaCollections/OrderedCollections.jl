@@ -2,7 +2,6 @@
 
 # This was largely copied and modified from Base
 
-
 struct OrderedSet{T}  <: AbstractSet{T}
     dict::OrderedDict{T,Nothing}
 
@@ -72,7 +71,6 @@ function filter!(f::Function, s::OrderedSet)
     return s
 end
 
-const orderedset_seed = UInt === UInt64 ? 0x2114638a942a91a5 : 0xd86bdbf1
 function hash(s::OrderedSet, h::UInt)
     h = hash(orderedset_seed, h)
     s.dict.ndel > 0 && rehash!(s.dict)
