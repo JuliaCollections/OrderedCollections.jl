@@ -125,7 +125,30 @@ using OrderedCollections, Test
         s = LittleSet([1,3,5,7])
         union!(s,(2,3,4,5))
         # TODO: order is not the same, so isequal should return false...
-        @test isequal(s,LittleSet([1,2,3,4,5,7]))
+        @test isequal(s, LittleSet([1,2,3,4,5,7]))
+    end
+
+    @testset "first" begin
+        @test_throws ArgumentError first(LittleSet())
+        @test first(LittleSet([2])) == 2
+
+        s = LittleSet([1,2,3])
+        @test length(first(s, 2)) == 2
+        @test length(first(s, 10)) == 3
+
+        s = LittleSet((1,2,3))
+        @test length(first(s, 2)) == 2
+        @test length(first(s, 10)) == 3
+    end
+
+    @testset "last" begin
+        s = LittleSet([1,2,3])
+        @test length(last(s, 2)) == 2
+        @test length(last(s, 10)) == 3
+
+        s = LittleSet((1,2,3))
+        @test length(last(s, 2)) == 2
+        @test length(last(s, 10)) == 3
     end
 
     @testset "intersect" begin
@@ -204,11 +227,15 @@ using OrderedCollections, Test
         @test isequal(filter(isodd,s), LittleSet([1,3]))
         filter!(isodd, s)
         @test isequal(s, LittleSet([1,3]))
+        s = LittleSet((1,2,3,4))
+        @test isa(filter(isodd, s), OrderedCollections.FrozenLittleSet)
     end
 
-    @testset "first" begin
-        @test_throws ArgumentError first(LittleSet())
-        @test first(LittleSet([2])) == 2
+    @testset "replace" begin
+        s = LittleSet([1,2,3,4])
+        @test isequal(replace(s, 1 => 0, 2 => 5), LittleSet([0, 5, 3, 4]))
+        s = LittleSet{Int, Tuple{Vararg{Int}}}((1,2,3,4))
+        @test isequal(replace(s, 1 => 0, 2 => 5), LittleSet((0, 5, 3, 4)))
     end
 
     @testset "empty set" begin
