@@ -118,8 +118,18 @@ using OrderedCollections, Test
 
     @testset "union" begin
         @test isequal(union(LittleSet([1])),LittleSet([1]))
+
         s = ∪(LittleSet([1,2]), LittleSet([3,4]))
         @test isequal(s, LittleSet([1,2,3,4]))
+
+        s = ∪(LittleSet((1, 2)), LittleSet((3,4)))
+        @test isequal(s, LittleSet((1,2,3,4)))
+
+        s1 = LittleSet{Int, Tuple{Vararg{Int}}}((1, 2))
+        s2 = LittleSet{Int, Tuple{Vararg{Int}}}((3,4))
+        s = @inferred(∪(s1, s2))
+        @test isequal(s, LittleSet((1,2,3,4)))
+
         s = union(LittleSet([5,6,7,8]), LittleSet([7,8,9]))
         @test isequal(s, LittleSet([5,6,7,8,9]))
         s = LittleSet([1,3,5,7])
@@ -139,6 +149,9 @@ using OrderedCollections, Test
         s = LittleSet((1,2,3))
         @test length(first(s, 2)) == 2
         @test length(first(s, 10)) == 3
+
+        s = LittleSet{Int, Tuple{Vararg{Int}}}((1,2,3))
+        @test length(@inferred(first(s, 2))) == 2
     end
 
     @testset "last" begin
@@ -149,6 +162,9 @@ using OrderedCollections, Test
         s = LittleSet((1,2,3))
         @test length(last(s, 2)) == 2
         @test length(last(s, 10)) == 3
+
+        s = LittleSet{Int, Tuple{Vararg{Int}}}((1,2,3))
+        @test length(@inferred(last(s, 2))) == 2
     end
 
     @testset "intersect" begin
@@ -235,7 +251,7 @@ using OrderedCollections, Test
         s = LittleSet([1,2,3,4])
         @test isequal(replace(s, 1 => 0, 2 => 5), LittleSet([0, 5, 3, 4]))
         s = LittleSet{Int, Tuple{Vararg{Int}}}((1,2,3,4))
-        @test isequal(replace(s, 1 => 0, 2 => 5), LittleSet((0, 5, 3, 4)))
+        @test isequal(@inferred(replace(s, 1 => 0, 2 => 5)), LittleSet((0, 5, 3, 4)))
     end
 
     @testset "empty set" begin

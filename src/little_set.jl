@@ -122,10 +122,10 @@ function Base.replace(f::Union{Function, Type}, s::LittleSet{T}; count::Integer=
         return LittleSet(newdata)
     end
 end
-function Base.replace(s::LittleSet{T}, old_new::Pair...; count::Integer=typemax(Int)) where {T}
+function Base.replace(s::LittleSet{T}, old_new::Pair{F, S}...; count::Integer=typemax(Int)) where {T, F, S}
     newdata = replace(getfield(s, :data), old_new...; count=count)
     if isa(s, LittleSet{T, Tuple{Vararg{T}}})
-        T2 = eltype(newdata)
+        T2 = Union{T, S}
         return LittleSet{T2, Tuple{Vararg{T2}}}(newdata)
     else
         return LittleSet(newdata)
@@ -177,7 +177,7 @@ function Base.union(x::FrozenLittleSet{T1}, y::FrozenLittleSet{T2}) where {T1, T
             newdata = (xdata..., getfield(filter(!in(x), y), :data)...)
         end
         T = Union{T1, T2}
-        LittleSet{T, Tuple{Vararg{T}}}(newdata)
+        return LittleSet{T, Tuple{Vararg{T}}}(newdata)
     else
         if nx < ny # nx is smaller so search for x items in y
             return LittleSet((filter(!in(ydata), xdata)..., ydata...))
@@ -189,7 +189,7 @@ end
 
 function Base.filter(f, s::LittleSet{T}) where {T}
     if isa(s, LittleSet{T, Tuple{Vararg{T}}})
-        return LittleSet{T, Tuple{Vararg{T}}}(Tuple(filter(f, collect(data))))
+        return LittleSet{T, Tuple{Vararg{T}}}(Tuple(filter(f, collect(getfield(s, :data)))))
     else
         return LittleSet(filter(f, getfield(s, :data)))
     end
