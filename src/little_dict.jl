@@ -4,6 +4,10 @@ const StoreType{T} = Union{Tuple{Vararg{T}}, AbstractVector{T}}
     throw(ArgumentError("Number of keys ($nk) differs from number of values ($nv)."))
 end
 
+# Default value for pop! functions
+struct Sentinel end
+const sentinel = Sentinel()
+
 """
     LittleDict(keys, vals)<:AbstractDict
 
@@ -235,9 +239,8 @@ function Base.pop!(dd::UnfrozenLittleDict)
     return pop!(dd.vals)
 end
 
-function Base.pop!(dd::UnfrozenLittleDict, key)
+function _pop!(dd::UnfrozenLittleDict, key, default=sentinel)
     @assert length(dd.keys) == length(dd.vals)
-
     for ii in 1:length(dd.keys)
         cand = @inbounds dd.keys[ii]
         if isequal(cand, key)
@@ -247,10 +250,18 @@ function Base.pop!(dd::UnfrozenLittleDict, key)
             return val
         end
     end
+
+    return default
+end
+
+function Base.pop!(dd::UnfrozenLittleDict, key, default=sentinel)
+    val = _pop!(dd, key, default)
+
+    return val === sentinel ? throw(KeyError(key)) : val
 end
 
 function Base.delete!(dd::UnfrozenLittleDict, key)
-    pop!(dd, key)
+    _pop!(dd, key)
     return dd
 end
 
