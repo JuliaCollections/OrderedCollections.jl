@@ -49,7 +49,7 @@ end
 # `FrozenLittleSet{T, Tuple{Vararg{T}}}`), these methods allow accessing data without exposing the
 # underlying `data` field and unintentionally specializing downstream code on the exact type
 # representation of a tuple.
-if isdefined(Base, Symbol("@assume_effects"))
+@static if isdefined(Base, Symbol("@assume_effects"))
     Base.@assume_effects :nothrow function unsafe_getstate(x::FrozenLittleSet, state::Int)
         getfield(getfield(x, :data), state)
     end
@@ -298,7 +298,12 @@ function Base.union(x::FrozenLittleSet{T1}, y::FrozenLittleSet{T2}) where {T1, T
 end
 
 function Base.filter(f, s::LittleSet{T}) where {T}
-    if isa(s, LittleSet{T, Tuple{Vararg{T}}})
+    if isa(s, FrozenLittleSet)
+        N = length(s)
+        if N > 32
+            newdata = Tuple(filter(f, collect(getfield(s, :data))))
+        else
+        end
         return LittleSet{T, Tuple{Vararg{T}}}(Tuple(filter(f, collect(getfield(s, :data)))))
     else
         return LittleSet(filter(f, getfield(s, :data)))
@@ -343,3 +348,4 @@ function Base.delete!(s::UnfrozenLittleSet, key)
     end
     return s
 end
+
