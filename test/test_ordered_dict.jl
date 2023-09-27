@@ -456,10 +456,22 @@ using OrderedCollections, Test
     end
 
     @testset "ordered access" begin
-        od = OrderedDict(:a=>1, :b=>2, :c=>3)  
+        od = OrderedDict(:a=>1, :b=>2, :c=>3)
         @test popfirst!(od) == (:a => 1)
         @test :a ∉ keys(od)
         @test pop!(od) == (:c => 3)
         @test :c ∉ keys(od)
+    end
+
+    @testset "lazy reverse iteration" begin
+        od = OrderedDict("a"=>1, "b"=>2, "c"=>3)
+        rev_keys = String[]
+        rev_vals = Int[]
+        for (k,v) in Iterators.reverse(od)
+            push!(rev_keys,k)
+            push!(rev_vals,v)
+        end
+        @test rev_keys == ["c","b","a"]
+        @test rev_vals == [3,2,1]
     end
 end # @testset OrderedDict
