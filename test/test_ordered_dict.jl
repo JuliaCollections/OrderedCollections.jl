@@ -473,20 +473,5 @@ using OrderedCollections, Test
             pass &= reverse(vs)[n] == v
         end
         @test pass
-        # and a set
-        os = OrderedSet(ks)
-        pass = true
-        for (n,k) in enumerate(Iterators.reverse(os))
-            pass &= reverse(ks)[n] == k
-        end
-        @test pass
-        # and LittleDict
-        ld = LittleDict(ks, vs)
-        pass = true
-        for (n,(k,v)) in enumerate(Iterators.reverse(ld))
-            pass &= reverse(ks)[n] == k
-            pass &= reverse(vs)[n] == v
-        end
-        @test pass
     end
 end # @testset OrderedDict

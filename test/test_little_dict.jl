@@ -559,5 +559,18 @@ end # @testset LittleDict
         map!(v->v-1, values(testdict))
         @test testdict[:a] == 0
         @test testdict[:b] == 1
-end
+    end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        ld = LittleDict(ks, vs)
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(ld))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
+    end
+
 end
