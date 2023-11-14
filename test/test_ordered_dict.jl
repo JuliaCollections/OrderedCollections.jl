@@ -464,14 +464,29 @@ using OrderedCollections, Test
     end
 
     @testset "lazy reverse iteration" begin
-        od = OrderedDict("a"=>1, "b"=>2, "c"=>3)
-        rev_keys = String[]
-        rev_vals = Int[]
-        for (k,v) in Iterators.reverse(od)
-            push!(rev_keys,k)
-            push!(rev_vals,v)
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        od   = OrderedDict(k=>v for (k,v) in zip(ks, vs))
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(od))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
         end
-        @test rev_keys == ["c","b","a"]
-        @test rev_vals == [3,2,1]
+        @test pass
+        # and a set
+        os = OrderedSet(ks)
+        pass = true
+        for (n,k) in enumerate(Iterators.reverse(os))
+            pass &= reverse(ks)[n] == k
+        end
+        @test pass
+        # and LittleDict
+        ld = LittleDict(ks, vs)
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(ld))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
     end
 end # @testset OrderedDict
