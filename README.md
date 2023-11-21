@@ -8,7 +8,10 @@
 OrderedCollections.jl
 =====================
 
-Note: v2.0 removes deprecations present in v1.6.2 (for `sort!(::Dict)`, `similar(::Union{OrderedDict, OrderedSet})`, indexing, and `convert` from non-ordered types), but is otherwise identical.
+**Changes in v2.0:**
+
+* removes deprecations present in v1.6.2 (for `sort!(::Dict)`, `similar(::Union{OrderedDict, OrderedSet})`, indexing, and `convert` from non-ordered types)
+* removes `convert(::OrderedDict, ::AbstractDict)` method to reduce invalidations, instead falling back to Base's method, which uses the constructor. This results in copying keys and values.
 
 This package implements OrderedDicts and OrderedSets, which are similar to containers in base Julia.
 However, during iteration the Ordered* containers return items in the order in which they were added to the collection.
