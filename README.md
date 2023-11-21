@@ -8,6 +8,8 @@
 OrderedCollections.jl
 =====================
 
+Note: v2.0 removes deprecations present in v1.6.2 (for `sort!(::Dict)` and `similar(::Union{OrderedDict, OrderedSet})`), but is otherwise identical.
+
 This package implements OrderedDicts and OrderedSets, which are similar to containers in base Julia.
 However, during iteration the Ordered* containers return items in the order in which they were added to the collection.
 It also implements `LittleDict` which is a ordered dictionary, that is much faster than any other `AbstractDict` (ordered or not) for small collections.

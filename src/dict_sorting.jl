@@ -33,8 +33,6 @@ end
 
 sort(d::Union{OrderedDict,OrderedSet}; args...) = sort!(copy(d); args...)
 
-@deprecate sort(d::Dict; args...) sort!(OrderedDict(d); args...)
-
 function sort(d::LittleDict; byvalue::Bool=false, args...)
     if byvalue
         p = sortperm(d.vals; args...)
@@ -43,4 +41,3 @@ function sort(d::LittleDict; byvalue::Bool=false, args...)
     end
     return LittleDict(d.keys[p], d.vals[p])
 end
-
