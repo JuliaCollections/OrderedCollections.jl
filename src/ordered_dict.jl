@@ -459,6 +459,21 @@ function iterate(t::OrderedDict, i)
     return (Pair(t.keys[i], t.vals[i]), i+1)
 end
 
+# lazy reverse iteration
+function iterate(rt::Iterators.Reverse{<:OrderedDict})
+    t = rt.itr
+    t.ndel > 0 && rehash!(t)
+    n = length(t.keys)
+    n < 1 && return nothing
+    return (Pair(t.keys[n], t.vals[n]), n - 1)
+end
+function iterate(rt::Iterators.Reverse{<:OrderedDict}, i)
+    t = rt.itr
+    i < 1 && return nothing
+    return (Pair(t.keys[i], t.vals[i]), i - 1)
+end
+
+
 function _merge_kvtypes(d, others...)
     K, V = keytype(d), valtype(d)
     for other in others

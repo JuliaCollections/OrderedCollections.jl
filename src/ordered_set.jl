@@ -54,6 +54,13 @@ function iterate(s::OrderedSet, i)
     return (s.dict.keys[i], i+1)
 end
 
+# lazy reverse iteration
+function iterate(rs::Iterators.Reverse{<:OrderedSet}, i = length(rs.itr))
+    s = rs.itr
+    i < 1 && return nothing
+    return (s.dict.keys[i], i-1)
+end
+
 pop!(s::OrderedSet) = pop!(s.dict)[1]
 popfirst!(s::OrderedSet) = popfirst!(s.dict)[1]
 
