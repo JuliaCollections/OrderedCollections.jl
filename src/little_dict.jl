@@ -156,6 +156,13 @@ function Base.iterate(dd::LittleDict, ii=1)
     return (dd.keys[ii] => dd.vals[ii], ii+1)
 end
 
+# lazy reverse iteration
+function Base.iterate(rdd::Iterators.Reverse{<:LittleDict}, ii=length(rdd.itr.keys))
+    dd = rdd.itr
+    ii < 1 && return nothing
+    return (dd.keys[ii] => dd.vals[ii], ii-1)
+end
+
 function merge(d1::LittleDict, others::AbstractDict...)
     return merge((x,y)->y, d1, others...)
 end
