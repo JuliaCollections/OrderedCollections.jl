@@ -57,7 +57,6 @@ end
 # Other iterators should be copied to a Vector
 LittleDict(ks, vs) = LittleDict(collect(ks), collect(vs))
 
-
 function LittleDict{K,V}(itr) where {K,V}
     ks = K[]
     vs = V[]
@@ -189,7 +188,6 @@ function merge(
     return dc
 end
 
-
 function Base.empty(dd::LittleDict{K,V}) where {K,V}
     LittleDict{K, V}(empty(getfield(dd, :keys)), empty(getfield(dd, :vals)))
 end
@@ -213,7 +211,6 @@ function add_new!(dd::UnfrozenLittleDict{K, V}, key, value) where {K, V}
 
     return dd
 end
-
 
 function Base.setindex!(dd::LittleDict{K,V, <:Any, <:Vector}, value, key) where {K,V}
     # Note we only care if the Value store is mutable (<:Vector)

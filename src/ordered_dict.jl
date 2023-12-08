@@ -2,13 +2,11 @@
 const global maxallowedprobe = isdefined(Base, :maxallowedprobe) ? Base.maxallowedprobe : 16
 const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobeshift : 6
 
-# OrderedDict
-
 """
     OrderedDict
 
-`OrderedDict`s are  simply dictionaries  whose entries  have a  particular order.  The order
-refers to insertion order, which allows deterministic iteration over the dictionary or set.
+`OrderedDict`s are simply dictionaries whose entries have a particular order. The order
+refers to insertion order, which allows deterministic iteration over the dictionary.
 """
 mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     slots::Array{Int32,1}
@@ -53,7 +51,6 @@ end
 OrderedDict() = OrderedDict{Any,Any}()
 OrderedDict(kv::Tuple{}) = OrderedDict()
 copy(d::OrderedDict) = OrderedDict(d)
-
 
 # TODO: this can probably be simplified using `eltype` as a THT (Tim Holy trait)
 # OrderedDict{K,V}(kv::Tuple{Vararg{Tuple{K,V}}})     = OrderedDict{K,V}(kv)
