@@ -68,5 +68,5 @@ OrderedDict
 OrderedSet
 LittleDict
 freeze
-isordered
+OrderedCollections.isordered
 ```
