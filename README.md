@@ -1,11 +1,9 @@
-[![CI](https://github.com/JuliaCollections/OrderedCollections.jl/workflows/CI/badge.svg)](https://github.com/JuliaCollections/OrderedCollections.jl/actions?query=workflow%3ACI)
-
-[![Test Coverage](https://codecov.io/github/JuliaCollections/OrderedCollections.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaCollections/OrderedCollections.jl?branch=master)
-
-[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliacollections.github.io/OrderedCollections.jl/latest)
-
 OrderedCollections.jl
 =====================
+
+[![CI](https://github.com/JuliaCollections/OrderedCollections.jl/workflows/CI/badge.svg)](https://github.com/JuliaCollections/OrderedCollections.jl/actions?query=workflow%3ACI)
+[![Test Coverage](https://codecov.io/github/JuliaCollections/OrderedCollections.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaCollections/OrderedCollections.jl?branch=master)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliacollections.github.io/OrderedCollections.jl/latest)
 
 This package implements OrderedDicts and OrderedSets, which are similar to containers in base Julia.
 However, during iteration the Ordered* containers return items in the order in which they were added to the collection.
