@@ -1,6 +1,5 @@
-[![Travis Build Status](https://travis-ci.org/JuliaCollections/OrderedCollections.jl.svg?branch=master)](https://travis-ci.org/JuliaCollections/OrderedCollections.jl)
+[![CI](https://github.com/JuliaCollections/OrderedCollections.jl/workflows/CI/badge.svg)](https://github.com/JuliaCollections/OrderedCollections.jl/actions?query=workflow%3ACI)
 
-[![Appveyor Build Status](https://ci.appveyor.com/api/projects/status/5gw9xok4e58aixsv?svg=true)](https://ci.appveyor.com/project/kmsquire/datastructures-jl)
 [![Test Coverage](https://codecov.io/github/JuliaCollections/OrderedCollections.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaCollections/OrderedCollections.jl?branch=master)
 
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliacollections.github.io/OrderedCollections.jl/latest)
@@ -13,8 +12,3 @@ However, during iteration the Ordered* containers return items in the order in w
 It also implements `LittleDict` which is a ordered dictionary, that is much faster than any other `AbstractDict` (ordered or not) for small collections.
 
 This package was split out from [DataStructures.jl](https://github.com/JuliaCollections/DataStructures.jl).
-
-Resources
----------
-
--   **Documentation**: https://juliacollections.github.io/OrderedCollections.jl/latest
