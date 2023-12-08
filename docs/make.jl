@@ -1,7 +1,6 @@
 using Documenter
 using OrderedCollections
 
-
 makedocs(
     format = :html,
     sitename = "OrderedCollections.jl",
