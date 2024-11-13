@@ -188,6 +188,8 @@ function merge(
     return dc
 end
 
+mergewith(combine::Function, d::LittleDict, others::AbstractDict...) = merge(combine, d, others...)
+
 function Base.empty(dd::LittleDict{K,V}) where {K,V}
     LittleDict{K, V}(empty(getfield(dd, :keys)), empty(getfield(dd, :vals)))
 end

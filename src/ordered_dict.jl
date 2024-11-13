@@ -490,6 +490,8 @@ function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
     merge!(combine, OrderedDict{K,V}(), d, others...)
 end
 
+mergewith(combine::Function, d::OrderedDict, others::AbstractDict...) = merge(combine, d, others...)
+
 function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
     vals = dict.vals
