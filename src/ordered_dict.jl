@@ -485,12 +485,12 @@ function merge(d::OrderedDict, others::AbstractDict...)
     merge!(OrderedDict{K,V}(), d, others...)
 end
 
-function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
+function mergewith(combine, d::OrderedDict, others::AbstractDict...)
     K,V = _merge_kvtypes(d, others...)
-    merge!(combine, OrderedDict{K,V}(), d, others...)
+    mergewith!(combine, OrderedDict{K,V}(), d, others...)
 end
 
-mergewith(combine::Function, d::OrderedDict, others::AbstractDict...) = merge(combine, d, others...)
+merge(combine::Function, d::OrderedDict, others::AbstractDict...) = mergewith(combine, d, others...)
 
 function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
