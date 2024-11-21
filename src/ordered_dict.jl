@@ -1,3 +1,5 @@
+using Base: isbitsunion
+
 # These can be changed, to trade off better performance for space
 const global maxallowedprobe = isdefined(Base, :maxallowedprobe) ? Base.maxallowedprobe : 16
 const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobeshift : 6
@@ -115,7 +117,7 @@ isslotempty(slot_value::Integer) = slot_value == 0
 isslotfilled(slot_value::Integer) = slot_value > 0
 isslotmissing(slot_value::Integer) = slot_value < 0
 
-function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
+function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K,V}
     olds = h.slots
     keys = h.keys
     vals = h.vals
@@ -137,7 +139,7 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
 
     if h.ndel > 0
         ndel0 = h.ndel
-        ptrs = !isbitstype(K)
+        ptrs = !isbitstype(K) && !isbitsunion(K)
         to = 1
         # TODO: to get the best performance we need to avoid reallocating these.
         # This algorithm actually works in place, unless the dict is modified
