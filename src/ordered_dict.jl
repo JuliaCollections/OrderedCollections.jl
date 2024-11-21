@@ -237,7 +237,7 @@ function ht_keyindex(h::OrderedDict{K,V}, key, direct) where {K,V}
     index = hashindex(key, sz)
     keys = h.keys
 
-    @inbounds while iter <= maxprobe
+    @inbounds while true
         si = slots[index]
         isslotempty(si) && break
         if isslotfilled(si) && isequal(key, keys[si])
@@ -246,6 +246,7 @@ function ht_keyindex(h::OrderedDict{K,V}, key, direct) where {K,V}
 
         index = (index & (sz-1)) + 1
         iter += 1
+        iter > maxprobe && break
     end
 
     return -1
@@ -263,7 +264,7 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
     keys = h.keys
     avail = 0
 
-    @inbounds while iter <= maxprobe
+    @inbounds while true
         si = slots[index]
         if isslotempty(si)
             avail < 0 && return avail
@@ -272,12 +273,13 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
 
         if isslotmissing(si)
             avail == 0 && (avail = -index)
-        elseif isequal(key, keys[si])
+        elseif key === keys[si] || isequal(key, keys[si])
             return oftype(index, si)
         end
 
         index = (index & (sz-1)) + 1
         iter += 1
+        iter > maxprobe && break
     end
 
     avail < 0 && return avail
@@ -300,13 +302,9 @@ end
 
 function _setindex!(h::OrderedDict, v, key, index)
     hk, hv = h.keys, h.vals
-    #push!(h.keys, key)
-    ccall(:jl_array_grow_end, Cvoid, (Any, UInt), hk, 1)
+    push!(hk, key)
+    push!(hv, v)
     nk = length(hk)
-    @inbounds hk[nk] = key
-    #push!(h.vals, v)
-    ccall(:jl_array_grow_end, Cvoid, (Any, UInt), hv, 1)
-    @inbounds hv[nk] = v
     @inbounds h.slots[index] = nk
     h.dirty = true
 
@@ -433,8 +431,8 @@ end
 function _delete!(h::OrderedDict, index)
     @inbounds ki = h.slots[index]
     @inbounds h.slots[index] = -ki
-    ccall(:jl_arrayunset, Cvoid, (Any, UInt), h.keys, ki-1)
-    ccall(:jl_arrayunset, Cvoid, (Any, UInt), h.vals, ki-1)
+    @inbounds Base._unsetindex!(h.keys, ki)
+    @inbounds Base._unsetindex!(h.vals, ki)
     h.ndel += 1
     h.dirty = true
     return h
