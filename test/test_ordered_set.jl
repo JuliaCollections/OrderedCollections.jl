@@ -3,6 +3,8 @@ using OrderedCollections, Test
 @testset "OrderedSet" begin
 
     @testset "Constructors" begin
+        @test isa(OrderedSet{Int}(keys(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), 0, 0, false))), OrderedSet{Int})
+        @test isa(OrderedSet{Int}(keys(OrderedDict([(1,2.0)]))), OrderedSet{Int})
         @test isa(OrderedSet(), OrderedSet{Any})
         @test isa(OrderedSet([1,2,3]), OrderedSet{Int})
         @test isa(OrderedSet{Int}([3]), OrderedSet{Int})
@@ -239,4 +241,31 @@ using OrderedCollections, Test
         @test collect(d) == collect('a':'z')
     end
 
+    @testset "sort(!)" begin
+        x = [-4, 1, -5, 10, 7]
+        ox = OrderedSet(x)
+        @test !issorted(ox)
+        sox = sort(ox)
+        @test issorted(sox)
+        sox = sort(ox; rev=true)
+        @test !issorted(sox)
+        @test issorted(sox; rev=true)
+        ox = OrderedSet(x)
+        @test ox === sort!(ox)
+        @test issorted(ox)
+        ox = OrderedSet(x)
+        @test ox === sort!(ox; rev=true)
+        @test !issorted(ox)
+        @test issorted(ox; rev=true)
+    end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        os  = OrderedSet(ks)
+        pass = true
+        for (n,k) in enumerate(Iterators.reverse(os))
+            pass &= reverse(ks)[n] == k
+        end
+        @test pass
+    end
 end # @testset OrderedSet

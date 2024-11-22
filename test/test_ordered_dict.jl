@@ -3,6 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
+        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), 0, 0, false)), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
         @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict([("a",1),("b",2)])), OrderedDict{String,Int})
@@ -78,6 +79,20 @@ using OrderedCollections, Test
         od60[14]=15
 
         @test od60[14] == 15
+    end
+
+    @testset "Issue #87" begin
+        od1 = OrderedDict(nothing => 1, 2 => 3)
+        delete!(od1, nothing)
+        @test OrderedDict(2 => 3) == OrderedDict(od1...)
+
+        od2 = OrderedDict(2 => 0.1, nothing => 0.2, 3 => 0.5)
+        delete!(od2, nothing)
+        @test OrderedDict(2 => 0.1, 3 => 0.5) == OrderedDict(od2...)
+
+        od3 = OrderedDict(2 => 0.1, 5 => 0.4, nothing => 0.03, 10 => 0.4)
+        delete!(od3, nothing)
+        @test OrderedDict(2 => 0.1, 5 => 0.4, 10 => 0.4) == OrderedDict(od3...)
     end
 
 
@@ -231,6 +246,10 @@ using OrderedCollections, Test
     @testset "first" begin
         @test_throws ArgumentError first(OrderedDict())
         @test first(OrderedDict([(:f, 2)])) == Pair(:f,2)
+    end
+
+    @testset "last" begin
+        @test last(OrderedDict([(:f, 2)])) == Pair(:f,2)
     end
 
     @testset "Issue #1821" begin
@@ -418,6 +437,11 @@ using OrderedCollections, Test
         @test merge(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
     end
 
+    @testset "Test that OrderedDict mergewith returns type OrderedDict" begin
+        @test mergewith(+, OrderedDict(:a=>1, :b=>2), OrderedDict(:b=>7, :c=>4)) == OrderedDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
+    end
+
     @testset "map!(f, values(OrderedDict))" begin
         testdict = OrderedDict(:a=>1, :b=>2)
         map!(v->v-1, values(testdict))
@@ -481,6 +505,26 @@ using OrderedCollections, Test
         od[15] = 15
         del_slots4 = sum(od.slots .< 0)
         @test del_slots4 == 0
+    end
+
+    @testset "ordered access" begin
+        od = OrderedDict(:a=>1, :b=>2, :c=>3)
+        @test popfirst!(od) == (:a => 1)
+        @test :a ∉ keys(od)
+        @test pop!(od) == (:c => 3)
+        @test :c ∉ keys(od)
+    end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        od   = OrderedDict(k=>v for (k,v) in zip(ks, vs))
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(od))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
     end
 
 end # @testset OrderedDict

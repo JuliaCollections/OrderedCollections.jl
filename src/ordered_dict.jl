@@ -1,14 +1,14 @@
+using Base: isbitsunion
+
 # These can be changed, to trade off better performance for space
 const global maxallowedprobe = isdefined(Base, :maxallowedprobe) ? Base.maxallowedprobe : 16
 const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobeshift : 6
 
-# OrderedDict
-
 """
     OrderedDict
 
-`OrderedDict`s are  simply dictionaries  whose entries  have a  particular order.  The order
-refers to insertion order, which allows deterministic iteration over the dictionary or set.
+`OrderedDict`s are simply dictionaries whose entries have a particular order. The order
+refers to insertion order, which allows deterministic iteration over the dictionary.
 """
 mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     slots::Array{Int32,1}
@@ -17,38 +17,42 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     ndel::Int
     maxprobe::Int
     dirty::Bool
-
-    function OrderedDict{K,V}() where {K,V}
-        new{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
-    end
-    function OrderedDict{K,V}(kv) where {K,V}
-        h = OrderedDict{K,V}()
-        for (k,v) in kv
-            h[k] = v
-        end
-        return h
-    end
-    OrderedDict{K,V}(p::Pair) where {K,V} = setindex!(OrderedDict{K,V}(), p.second, p.first)
-    function OrderedDict{K,V}(ps::Pair...) where {K,V}
-        h = OrderedDict{K,V}()
-        sizehint!(h, length(ps))
-        for p in ps
-            h[p.first] = p.second
-        end
-        return h
-    end
-    function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
-        if d.ndel > 0
-            rehash!(d)
-        end
-        @assert d.ndel == 0
-        new{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
-    end
 end
+
+function OrderedDict{K,V}() where {K,V}
+    OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
+end
+
+function OrderedDict{K,V}(kv) where {K,V}
+    h = OrderedDict{K,V}()
+    for (k,v) in kv
+        h[k] = v
+    end
+    return h
+end
+
+OrderedDict{K,V}(p::Pair) where {K,V} = setindex!(OrderedDict{K,V}(), p.second, p.first)
+
+function OrderedDict{K,V}(ps::Pair...) where {K,V}
+    h = OrderedDict{K,V}()
+    sizehint!(h, length(ps))
+    for p in ps
+        h[p.first] = p.second
+    end
+    return h
+end
+
+function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
+    if d.ndel > 0
+        rehash!(d)
+    end
+    @assert d.ndel == 0
+    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
+end
+
 OrderedDict() = OrderedDict{Any,Any}()
 OrderedDict(kv::Tuple{}) = OrderedDict()
 copy(d::OrderedDict) = OrderedDict(d)
-
 
 # TODO: this can probably be simplified using `eltype` as a THT (Tim Holy trait)
 # OrderedDict{K,V}(kv::Tuple{Vararg{Tuple{K,V}}})     = OrderedDict{K,V}(kv)
@@ -93,6 +97,7 @@ isordered(::Type{T}) where {T<:OrderedDict} = true
 
 # conversion between OrderedDict types
 function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
+    d isa OrderedDict{K, V} && return d
     if !isordered(typeof(d))
         Base.depwarn("Conversion to OrderedDict is deprecated for unordered associative containers (in this case, $(typeof(d))). Use an ordered or sorted associative type, such as SortedDict and OrderedDict.", :convert)
     end
@@ -107,13 +112,12 @@ function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
     end
     return h
 end
-convert(::Type{OrderedDict{K,V}},d::OrderedDict{K,V}) where {K,V} = d
 
 isslotempty(slot_value::Integer) = slot_value == 0
 isslotfilled(slot_value::Integer) = slot_value > 0
 isslotmissing(slot_value::Integer) = slot_value < 0
 
-function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
+function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K,V}
     olds = h.slots
     keys = h.keys
     vals = h.vals
@@ -135,7 +139,7 @@ function rehash!(h::OrderedDict{K,V}, newsz = length(h.slots)) where {K,V}
 
     if h.ndel > 0
         ndel0 = h.ndel
-        ptrs = !isbitstype(K)
+        ptrs = !isbitstype(K) && !isbitsunion(K)
         to = 1
         # TODO: to get the best performance we need to avoid reallocating these.
         # This algorithm actually works in place, unless the dict is modified
@@ -235,7 +239,7 @@ function ht_keyindex(h::OrderedDict{K,V}, key, direct) where {K,V}
     index = hashindex(key, sz)
     keys = h.keys
 
-    @inbounds while iter <= maxprobe
+    @inbounds while true
         si = slots[index]
         isslotempty(si) && break
         if isslotfilled(si) && isequal(key, keys[si])
@@ -244,6 +248,7 @@ function ht_keyindex(h::OrderedDict{K,V}, key, direct) where {K,V}
 
         index = (index & (sz-1)) + 1
         iter += 1
+        iter > maxprobe && break
     end
 
     return -1
@@ -261,7 +266,7 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
     keys = h.keys
     avail = 0
 
-    @inbounds while iter <= maxprobe
+    @inbounds while true
         si = slots[index]
         if isslotempty(si)
             avail < 0 && return avail
@@ -270,12 +275,13 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
 
         if isslotmissing(si)
             avail == 0 && (avail = -index)
-        elseif isequal(key, keys[si])
+        elseif key === keys[si] || isequal(key, keys[si])
             return oftype(index, si)
         end
 
         index = (index & (sz-1)) + 1
         iter += 1
+        iter > maxprobe && break
     end
 
     avail < 0 && return avail
@@ -298,13 +304,9 @@ end
 
 function _setindex!(h::OrderedDict, v, key, index)
     hk, hv = h.keys, h.vals
-    #push!(h.keys, key)
-    ccall(:jl_array_grow_end, Cvoid, (Any, UInt), hk, 1)
+    push!(hk, key)
+    push!(hv, v)
     nk = length(hk)
-    @inbounds hk[nk] = key
-    #push!(h.vals, v)
-    ccall(:jl_array_grow_end, Cvoid, (Any, UInt), hv, 1)
-    @inbounds hv[nk] = v
     @inbounds h.slots[index] = nk
     h.dirty = true
 
@@ -411,6 +413,13 @@ function pop!(h::OrderedDict)
     return key => _pop!(h, index)
 end
 
+function popfirst!(h::OrderedDict)
+    h.ndel > 0 && rehash!(h)
+    key = h.keys[1]
+    index = ht_keyindex(h, key, false)
+    key => _pop!(h, index)
+end
+
 function pop!(h::OrderedDict, key)
     index = ht_keyindex(h, key, false)
     index > 0 ? _pop!(h, index) : throw(KeyError(key))
@@ -424,8 +433,8 @@ end
 function _delete!(h::OrderedDict, index)
     @inbounds ki = h.slots[index]
     @inbounds h.slots[index] = -ki
-    ccall(:jl_arrayunset, Cvoid, (Any, UInt), h.keys, ki-1)
-    ccall(:jl_arrayunset, Cvoid, (Any, UInt), h.vals, ki-1)
+    @inbounds Base._unsetindex!(h.keys, ki)
+    @inbounds Base._unsetindex!(h.vals, ki)
     h.ndel += 1
     h.dirty = true
     return h
@@ -447,6 +456,21 @@ function iterate(t::OrderedDict, i)
     return (Pair(t.keys[i], t.vals[i]), i+1)
 end
 
+# lazy reverse iteration
+function iterate(rt::Iterators.Reverse{<:OrderedDict})
+    t = rt.itr
+    t.ndel > 0 && rehash!(t)
+    n = length(t.keys)
+    n < 1 && return nothing
+    return (Pair(t.keys[n], t.vals[n]), n - 1)
+end
+function iterate(rt::Iterators.Reverse{<:OrderedDict}, i)
+    t = rt.itr
+    i < 1 && return nothing
+    return (Pair(t.keys[i], t.vals[i]), i - 1)
+end
+
+
 function _merge_kvtypes(d, others...)
     K, V = keytype(d), valtype(d)
     for other in others
@@ -461,10 +485,12 @@ function merge(d::OrderedDict, others::AbstractDict...)
     merge!(OrderedDict{K,V}(), d, others...)
 end
 
-function merge(combine::Function, d::OrderedDict, others::AbstractDict...)
+function mergewith(combine, d::OrderedDict, others::AbstractDict...)
     K,V = _merge_kvtypes(d, others...)
-    merge!(combine, OrderedDict{K,V}(), d, others...)
+    mergewith!(combine, OrderedDict{K,V}(), d, others...)
 end
+
+merge(combine::Function, d::OrderedDict, others::AbstractDict...) = mergewith(combine, d, others...)
 
 function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
@@ -480,3 +506,5 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     end
     return iter
 end
+
+last(h::OrderedDict) = h.keys[end] => h.vals[end]

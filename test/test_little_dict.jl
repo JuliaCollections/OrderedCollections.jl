@@ -39,6 +39,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
     end
 
     @testset "Constructors" begin
+        @test isa(@inferred(LittleDict{Any, Any, <:Tuple, <:Tuple}()), LittleDict{Any, Any, Tuple{}, Tuple{}})
         @test isa(@inferred(LittleDict()), LittleDict{Any,Any})
         @test isa(@inferred(LittleDict([(1,2.0)])), LittleDict{Int,Float64})
 
@@ -410,7 +411,33 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
     @testset "Test merging" begin
         a = LittleDict("foo"  => 0.0, "bar" => 42.0)
         b = LittleDict("フー" => 17, "バー" => 4711)
-        @test isa(merge(a, b), LittleDict{String,Float64})
+        result = merge(a, b)
+        @test isa(result, LittleDict{String,Float64})
+
+        expected = LittleDict("foo"  => 0.0, "bar" => 42.0, "フー" => 17, "バー" => 4711)
+        @test result == expected
+
+        c = LittleDict("a" => 1, "b" => 2, "c" => 3)
+        result = merge(a, b, c)
+        @test isa(result, LittleDict{String,Float64})
+
+        expected = LittleDict(
+            "foo" => 0.0, "bar" => 42.0,
+            "フー" => 17, "バー" => 4711,
+            "a" => 1, "b" => 2, "c" => 3,
+        )
+        @test result == expected
+
+        c = LittleDict("a" => 1, "b" => 2, "foo" => 3)
+        result = merge(a, b, c)
+        @test isa(result, LittleDict{String,Float64})
+
+        expected = LittleDict(
+            "foo" => 3, "bar" => 42.0,
+            "フー" => 17, "バー" => 4711,
+            "a" => 1, "b" => 2,
+        )
+        @test result == expected
     end
 
     @testset "Issue #9295" begin
@@ -480,6 +507,11 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
 
+    @testset "Test that LittleDict mergewith returns type LittleDict" begin
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
+    end
+
     @testset "issue #27" begin
         d = LittleDict{Symbol, Int}(:x=>1)
         d1 = LittleDict(:x=>1)
@@ -526,11 +558,24 @@ end # @testset LittleDict
         @test_throws MethodError fd[30] = "cc"
         @test_throws MethodError fd[-1] = "dd"
     end
-    
+
     @testset "map!(f, values(LittleDict))" begin
         testdict = LittleDict(:a=>1, :b=>2)
         map!(v->v-1, values(testdict))
         @test testdict[:a] == 0
         @test testdict[:b] == 1
-end
+    end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        ld = LittleDict(ks, vs)
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(ld))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
+    end
+
 end
