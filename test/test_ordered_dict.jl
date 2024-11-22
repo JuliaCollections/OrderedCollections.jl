@@ -423,6 +423,11 @@ using OrderedCollections, Test
         @test merge(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
     end
 
+    @testset "Test that OrderedDict mergewith returns type OrderedDict" begin
+        @test mergewith(+, OrderedDict(:a=>1, :b=>2), OrderedDict(:b=>7, :c=>4)) == OrderedDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
+    end
+
     @testset "map!(f, values(OrderedDict))" begin
         testdict = OrderedDict(:a=>1, :b=>2)
         map!(v->v-1, values(testdict))

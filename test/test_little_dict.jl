@@ -507,6 +507,11 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
 
+    @testset "Test that LittleDict mergewith returns type LittleDict" begin
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
+    end
+
     @testset "issue #27" begin
         d = LittleDict{Symbol, Int}(:x=>1)
         d1 = LittleDict(:x=>1)
