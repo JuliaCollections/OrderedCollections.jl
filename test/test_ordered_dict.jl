@@ -81,6 +81,20 @@ using OrderedCollections, Test
         @test od60[14] == 15
     end
 
+    @testset "Issue #87" begin
+        od1 = OrderedDict(nothing => 1, 2 => 3)
+        delete!(od1, nothing)
+        @test OrderedDict(2 => 3) == OrderedDict(od1...)
+
+        od2 = OrderedDict(2 => 0.1, nothing => 0.2, 3 => 0.5)
+        delete!(od2, nothing)
+        @test OrderedDict(2 => 0.1, 3 => 0.5) == OrderedDict(od2...)
+
+        od3 = OrderedDict(2 => 0.1, 5 => 0.4, nothing => 0.03, 10 => 0.4)
+        delete!(od3, nothing)
+        @test OrderedDict(2 => 0.1, 5 => 0.4, 10 => 0.4) == OrderedDict(od3...)
+    end
+
 
     ##############################
     # Copied and modified from Base/test/dict.jl
