@@ -1,4 +1,6 @@
-# OrderedSets
+# Ordered containers
+
+## OrderedSets
 
 `OrderedSets` are sets whose entries have a particular order.
 Order refers to *insertion order*, which allows deterministic
@@ -25,7 +27,8 @@ specify the type in curly-braces:
 # create an OrderedSet of Strings
 strs = OrderedSet{AbstractString}()
 ```
-# OrderedDicts
+
+## OrderedDicts
 Similarly, `OrderedDict` are simply dictionaries whose entries have a particular
 order.
 ```julia
@@ -45,7 +48,7 @@ The insertion order is conserved when iterating on the dictionary itself,
 its keys (through `keys(d)`), or its values (through `values(d)`).
 All standard `Associative` and `Dict` functions are available for `OrderedDicts`
 
-# LittleDict
+## LittleDict
 ```julia
 d = LittleDict{Char,Int}()
 for c in 'a':'d'
