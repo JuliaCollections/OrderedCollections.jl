@@ -433,8 +433,8 @@ end
 function _delete!(h::OrderedDict, index)
     @inbounds ki = h.slots[index]
     @inbounds h.slots[index] = -ki
-    @inbounds Base._unsetindex!(h.keys, ki)
-    @inbounds Base._unsetindex!(h.vals, ki)
+    @inbounds Base._unsetindex!(h.keys, Int(ki))
+    @inbounds Base._unsetindex!(h.vals, Int(ki))
     h.ndel += 1
     h.dirty = true
     return h
