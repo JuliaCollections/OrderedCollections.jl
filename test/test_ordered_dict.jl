@@ -474,6 +474,39 @@ using OrderedCollections, Test
         @test od[14] == 14
     end
 
+    @testset "Issue #65" begin
+        x = OrderedDict{OrderedDict, Int}()
+        x[x] = 0  # There's no reason to ever do this, but it shouldn't overflow the stack
+        @test length(deepcopy(x)) == 1
+
+        # Test that a rehash isn't triggered during setindex! with only a few keys added/removed.
+        # It should only be triggered when a count equal to 3/4 of the slots have been removed.
+        # With the smallest size dict, that would be 12/16
+        od = OrderedDict{Int,Int}(i=>i for i in 1:5)
+        for i in 1:4
+            pop!(od, i)
+        end
+        del_slots1 = sum(od.slots .< 0)
+        od[6] = 6
+        del_slots2 = sum(od.slots .< 0)
+        @test del_slots1 - 1 <= del_slots2 <= del_slots1
+
+        for i in 7:14
+            od[i] = i
+        end
+        for i in 5:13
+            pop!(od, i)
+        end
+        del_slots3 = sum(od.slots .< 0)
+        # Some of the previously deleted slots might have been reused, but we should at
+        # least see deleted slots for items 5 through 13
+        @test del_slots3 >= 9
+        # We've now removed 13 items, so the next assignment should trigger a rehash
+        od[15] = 15
+        del_slots4 = sum(od.slots .< 0)
+        @test del_slots4 == 0
+    end
+
     @testset "ordered access" begin
         od = OrderedDict(:a=>1, :b=>2, :c=>3)
         @test popfirst!(od) == (:a => 1)
@@ -493,4 +526,5 @@ using OrderedCollections, Test
         end
         @test pass
     end
+
 end # @testset OrderedDict
