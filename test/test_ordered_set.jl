@@ -259,4 +259,13 @@ using OrderedCollections, Test
         @test issorted(ox; rev=true)
     end
 
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        os  = OrderedSet(ks)
+        pass = true
+        for (n,k) in enumerate(Iterators.reverse(os))
+            pass &= reverse(ks)[n] == k
+        end
+        @test pass
+    end
 end # @testset OrderedSet

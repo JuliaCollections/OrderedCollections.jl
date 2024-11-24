@@ -507,6 +507,11 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
 
+    @testset "Test that LittleDict mergewith returns type LittleDict" begin
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
+    end
+
     @testset "issue #27" begin
         d = LittleDict{Symbol, Int}(:x=>1)
         d1 = LittleDict(:x=>1)
@@ -559,5 +564,18 @@ end # @testset LittleDict
         map!(v->v-1, values(testdict))
         @test testdict[:a] == 0
         @test testdict[:b] == 1
-end
+    end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        ld = LittleDict(ks, vs)
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(ld))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
+    end
+
 end
