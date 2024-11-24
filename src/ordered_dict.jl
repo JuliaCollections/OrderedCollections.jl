@@ -67,15 +67,20 @@ OrderedDict(kv::AbstractDict{K,V}) where {K,V}         = OrderedDict{K,V}(kv)
 OrderedDict(ps::Pair{K,V}...) where {K,V} = OrderedDict{K,V}(ps)
 OrderedDict(ps::Pair...)                  = OrderedDict(ps)
 
-function OrderedDict(kv)
-    try
-        dict_with_eltype((K, V) -> OrderedDict{K, V}, kv, eltype(kv))
-    catch e
-        if isempty(methods(iterate, (typeof(kv),))) ||
-            !all(x->isa(x, Union{Tuple,Pair}), kv)
-            throw(ArgumentError("OrderedDict(kv): kv needs to be an iterator of tuples or pairs"))
-        else
-            rethrow(e)
+@static if VERSION >= v"1.11"
+    # see JuliaLang/julia#53151
+    OrderedDict(kv) = dict_with_eltype((K, V) -> OrderedDict{K, V}, kv, eltype(kv))
+else
+    function OrderedDict(kv)
+        try
+            dict_with_eltype((K, V) -> OrderedDict{K, V}, kv, eltype(kv))
+        catch e
+            if isempty(methods(iterate, (typeof(kv),))) ||
+                !all(x->isa(x, Union{Tuple,Pair}), kv)
+                throw(ArgumentError("OrderedDict(kv): kv needs to be an iterator of tuples or pairs"))
+            else
+                rethrow(e)
+            end
         end
     end
 end

@@ -507,6 +507,17 @@ using OrderedCollections, Test
         @test del_slots4 == 0
     end
 
+    @testset "Issue #86" begin
+        counter = 0
+        expensive_function(k) = (counter += 1; k > 2 && error("too large!"))
+        @test_throws ErrorException OrderedDict(k => expensive_function(k) for k in 1:3)
+        if VERSION >= v"1.11"
+            @test counter == 3
+        else
+            @test_broken counter == 3  # gives 6 instead
+        end
+    end
+
     @testset "ordered access" begin
         od = OrderedDict(:a=>1, :b=>2, :c=>3)
         @test popfirst!(od) == (:a => 1)
