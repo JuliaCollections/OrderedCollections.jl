@@ -6,7 +6,6 @@ makedocs(
 	sitename = "OrderedCollections.jl",
     pages = [
         "index.md",
-        "ordered_containers.md",
     ]
 )
 
