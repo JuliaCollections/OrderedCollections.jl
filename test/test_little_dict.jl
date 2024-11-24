@@ -103,10 +103,11 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test !('B' in keys(d))
         @test !haskey(d, 'B')
         @test pop!(d, 'a') == 2
+        @test pop!(d) == 26  # z was added last
 
-        @test collect(keys(d)) == collect('b':'z')
-        @test collect(values(d)) == collect(2:26)
-        @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'z', 2:26)]
+        @test collect(keys(d)) == collect('b':'y')
+        @test collect(values(d)) == collect(2:25)
+        @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'y', 2:25)]
     end
 
     @testset "convert" begin
@@ -377,17 +378,21 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test get!(d, 8, 5) == 19
         @test get!(d, 19, 2) == 2
 
-        @test get!(d, 42) do  # d is updated with f(2)
+        @test get!(d, 42) do  # key not found, d is updated with f(2)
             f(2)
         end == 4
 
-        @test get!(d, 42) do  # d is not updated
+        @test get!(d, 42) do  # key found, d is not updated
             f(200)
         end == 4
 
-        @test get(d, 13) do   # d is not updated
+        @test get(d, 13) do   # key not found, d is not updated
             f(4)
         end == 16
+
+        @test get(d, 42) do   # key found, d is not updated
+            error("this code is not reached")
+        end == 4
 
         @test d == LittleDict(8=>19, 19=>2, 42=>4)
     end
