@@ -421,15 +421,29 @@ using OrderedCollections, Test
     end
 
     @testset "Sorting" begin
-        d = Dict(i=>Char(123-i) for i = 1:10)
-        @test collect(keys(d)) != 1:10
-        sd = sort!(OrderedDict(d))
+        ks = [4, 8, 1, 7, 9, 3, 10, 2, 6, 5]
+        d = OrderedDict(i=>Char(123-i) for i in ks)
+
+        sd = sort(d)
+        @test collect(keys(d)) == ks    # verify d is not changed by sort()
         @test collect(keys(sd)) == 1:10
         @test collect(values(sd)) == collect('z':-1:'q')
         @test sort(sd) == sd
-        sdv = sort!(OrderedDict(d); byvalue=true)
+
+        sdv = sort(d; byvalue=true)
+        @test collect(keys(d)) == ks    # verify d is not changed by sort()
         @test collect(keys(sdv)) == 10:-1:1
         @test collect(values(sdv)) == collect('q':'z')
+
+        sort!(d)
+        @test collect(keys(d)) == 1:10
+        @test collect(values(d)) == collect('z':-1:'q')
+        @test sort(d) == d == sd
+
+        sort!(d; byvalue=true)
+        @test collect(keys(d)) == 10:-1:1
+        @test collect(values(d)) == collect('q':'z')
+        @test sort(d) == d == sd
     end
 
     @testset "Test that OrderedDict merge with combiner returns type OrderedDict" begin
