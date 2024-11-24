@@ -44,3 +44,13 @@ function sort(d::LittleDict; byvalue::Bool=false, args...)
     return LittleDict(d.keys[p], d.vals[p])
 end
 
+function sort!(d::UnfrozenLittleDict; byvalue::Bool=false, args...)
+    if byvalue
+        p = sortperm(d.vals; args...)
+    else
+        p = sortperm(d.keys; args...)
+    end
+    permute!(d.keys, p)
+    permute!(d.vals, p)
+    return d
+end
