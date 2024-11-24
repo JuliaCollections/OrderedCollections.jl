@@ -10,5 +10,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/JuliaCollections/OrderedCollections.jl.git"
+    repo = "github.com/JuliaCollections/OrderedCollections.jl.git",
+    push_preview = true,
 )
