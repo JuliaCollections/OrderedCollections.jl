@@ -31,6 +31,17 @@ function sort!(s::OrderedSet; kwargs...)
     return s
 end
 
+function sort!(d::UnfrozenLittleDict; byvalue::Bool=false, args...)
+    if byvalue
+        p = sortperm(d.vals; args...)
+    else
+        p = sortperm(d.keys; args...)
+    end
+    permute!(d.keys, p)
+    permute!(d.vals, p)
+    return d
+end
+
 sort(d::Union{OrderedDict,OrderedSet}; args...) = sort!(copy(d); args...)
 
 @deprecate sort(d::Dict; args...) sort!(OrderedDict(d); args...)
