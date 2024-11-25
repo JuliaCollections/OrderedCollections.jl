@@ -166,8 +166,8 @@ function merge(d1::LittleDict, others::AbstractDict...)
     return merge((x,y)->y, d1, others...)
 end
 
-function merge(
-    combine::Function,
+function mergewith(
+    combine,
     d::LittleDict,
     others::AbstractDict...
     )
@@ -187,6 +187,8 @@ function merge(
     end
     return dc
 end
+
+merge(combine::Function, d::LittleDict, others::AbstractDict...) = mergewith(combine, d, others...)
 
 function Base.empty(dd::LittleDict{K,V}) where {K,V}
     LittleDict{K, V}(empty(getfield(dd, :keys)), empty(getfield(dd, :vals)))
