@@ -451,6 +451,33 @@ function delete!(h::OrderedDict, key)
     return h
 end
 
+function deleteat!(od::OrderedDict, i::Integer, rehash=true)
+    key = od.keys[i]
+    index = OrderedCollections.ht_keyindex(od, key, false)
+    @inbounds ki = od.slots[index]
+    @inbounds od.slots[index] = -ki
+    ccall(:jl_arrayunset, Cvoid, (Any, UInt), od.keys, ki-1)
+    ccall(:jl_arrayunset, Cvoid, (Any, UInt), od.vals, ki-1)
+    od.ndel += 1
+    od.dirty = true
+    rehash && OrderedCollections.rehash!(od)
+end
+
+function deleteat!(od::OrderedDict,
+                   inds::Union{AbstractUnitRange{<:Integer}, AbstractVector{<:Integer}})
+    for i in inds
+        deleteat!(od, i, false)
+    end
+    OrderedCollections.rehash!(od)
+end
+
+function deleteat!(od::OrderedDict, inds::AbstractVector{<:Bool})
+    for (i,b) in enumerate(inds)
+        b && deleteat!(od, i, false)
+    end
+    OrderedCollections.rehash!(od)
+end
+
 function iterate(t::OrderedDict)
     t.ndel > 0 && rehash!(t)
     length(t.keys) < 1 && return nothing
