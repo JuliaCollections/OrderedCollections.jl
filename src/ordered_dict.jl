@@ -11,9 +11,9 @@ const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobesh
 refers to insertion order, which allows deterministic iteration over the dictionary.
 """
 mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
-    slots::Array{Int32,1}
-    keys::Array{K,1}
-    vals::Array{V,1}
+    slots::Vector{Int32}
+    keys::Vector{K}
+    vals::Vector{V}
     ndel::Int
     maxprobe::Int
     dirty::Bool

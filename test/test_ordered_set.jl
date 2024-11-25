@@ -11,7 +11,7 @@ using OrderedCollections, Test
         data_in = (1, "banana", ())
         s = OrderedSet(data_in)
         data_out = collect(s)
-        @test isa(data_out, Array{Any,1})
+        @test isa(data_out, Vector{Any})
         @test tuple(data_out...) === data_in
         @test tuple(data_in...) === tuple(s...)
         @test length(data_out) == length(data_in)

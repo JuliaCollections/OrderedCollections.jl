@@ -69,7 +69,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
             LittleDict{Int,Float64, Vector{Int}, Vector{Float64}}
 
         @test @inferred(LittleDict{Int, Char}(rand(1:100,20), rand('a':'z', 20))) isa
-            LittleDict{Int,Char,Array{Int,1},Array{Char,1}}
+            LittleDict{Int,Char,Vector{Int},Vector{Char}}
 
         # Different number of keys and values
         @test_throws ArgumentError LittleDict{Int, Char, Vector{Int}, Vector{Char}}([1,2,3], ['a','b'])
