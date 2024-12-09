@@ -61,7 +61,7 @@ function LittleDict{K,V}(itr) where {K,V}
     ks = K[]
     vs = V[]
     for val in itr
-        if !(val isa Union{Tuple{<:Any, <:Any}, Pair})
+        if !(val isa Union{Tuple{Any, Any}, Pair})
             throw(ArgumentError(
                 "LittleDict(kv): kv needs to be an iterator of tuples or pairs")
             )
