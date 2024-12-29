@@ -1,4 +1,11 @@
 
+"""
+    LittleSet([itr]) <: AbstractSet
+
+Constructs an ordered set optimized for a small number of elements, given the
+iterable `itr`. The underlying data is stored as either an `AbstractVector` or
+a `Tuple` and is optimal for 30-50 elements, similar to [`LittleDict`](@ref).
+"""
 struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
     data::D
 
@@ -8,11 +15,8 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
 
     LittleSet{T, D}(data) where {T,D} = new{T, D}(data)
     function OpaqueLittleSet{T}(@nospecialize(data)) where {T}
-        if isa(data, Tuple{Vararg{T}})
-            new{T, Tuple{Vararg{T}}}(data)
-        else
-            new{T, Tuple{Vararg{T}}}(Tuple(data))
-        end
+        new_data = isa(data, Tuple) ? data : Tuple(data)
+        new{T, Tuple{Vararg{T}}}(new_data)
     end
     function OpaqueLittleSet(@nospecialize(data))
         T = eltype(data)
@@ -43,68 +47,69 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
             end
         end
     end
-end
 
-# in cases where tuple parameters have been intentionally made opaque (such as
-# `FrozenLittleSet{T, Tuple{Vararg{T}}}`), these methods allow accessing data without exposing the
-# underlying `data` field and unintentionally specializing downstream code on the exact type
-# representation of a tuple.
-@static if isdefined(Base, Symbol("@assume_effects"))
-    Base.@assume_effects :nothrow function unsafe_getstate(x::FrozenLittleSet, state::Int)
-        getfield(getfield(x, :data), state)
+    function Base.empty(s::LittleSet{T, D}) where {T, D}
+        if isa(s, OpaqueLittleSet)
+            return new{T, Tuple{Vararg{T}}}(())
+        elseif D <: Tuple
+            return new{T, Tuple{}}(())
+        else
+            return new{T, D}(empty(getfield(s, :data)))
+        end
     end
-else
-    unsafe_getstate(x::FrozenLittleSet, state::Int) = @inbounds(getfield(getfield(x, :data), state))
+    function Base.emptymutable(s::LittleSet{T, D}, ::Type{U}=T) where {T, D, U}
+        if D <: Tuple
+            new_data = U[]
+        else
+            new_data = Base.emptymutable(getfield(s, :data), U)
+        end
+        return new{U, typeof(new_data)}(new_data)
+    end
 end
-unsafe_getstate(x::UnfrozenLittleSet, state::Int) = @inbounds(getfield(x, :data)[state])
 
-# `data` should not be directly accessed
-Base.propertynames(@nospecialize(x::LittleSet)) = ()
-function Base.propertynames(@nospecialize(x::LittleSet), ::Symbol)
-    throw(ArgumentError("LittleSet does not support public access to it's fields."))
+function Base.Tuple(s::LittleSet)
+    data = getfield(s, :data)
+    isa(data, Tuple) ? data : Tuple(data)
 end
-
-Base.Tuple(s::FrozenLittleSet) = getfield(s, :data)
-Base.Tuple(s::UnfrozenLittleDict) = Tuple(getfield(s, :data))
 
 freeze(s::AbstractSet{T}) where {T} = LittleSet{T}(Tuple(s))
 
 hash(s::LittleSet, h::UInt) = hash(getfield(s, :data), hash(orderedset_seed, h))
 
-Base.length(s::UnfrozenLittleSet) = length(getfield(s, :data))
-Base.length(@nospecialize(s::FrozenLittleSet)) = nfields(getfield(s, :data))
+function Base.length(s::LittleSet)
+    data = getfield(s, :data)
+    isa(data, Tuple) ? nfields(data) : length(data)
+end
 
-#region empty
-Base.isempty(s::UnfrozenLittleSet) = isempty(getfield(s, :data))
-Base.isempty(@nospecialize(s::FrozenLittleSet)) = nfields(getfield(s, :data)) === 0
+function Base.isempty(s::LittleSet)
+    data = getfield(s, :data)
+    isa(data, Tuple) ? nfields(data) == 0 : isempty(data)
+end
 
-function Base.empty(@nospecialize(s::FrozenLittleSet))
-    if isa(s, OpaqueLittleSet)
-        return OpaqueLittleSet{eltype(s)}(())
+function Base.copy(s::LittleSet{T, D}) where {T, D}
+    # since `Base.copy` is a shallow copy on collections, an immutable collection
+    # like `Tuple` is treated the same
+    if D <: Tuple
+        return s
     else
-        return LittleSet{eltype(s), Tuple{}}(())
+        return LittleSet{T, D}(copy(getfield(s, :data)))
     end
 end
-Base.empty(s::UnfrozenLittleSet{T}) where {T} = LittleSet{T}(empty(getfield(s, :data)))
 
-function Base.emptymutable(s::UnfrozenLittleSet{T}, ::Type{U}=T) where {T, U}
-    LittleSet(Base.emptymutable(getfield(s, :data), U))
+function Base.copymutable(s::LittleSet{T}) where {T}
+    data = getfield(s, :data)
+    if isa(data, Tuple)
+        i = nfields(data)
+        new_data = Vector{T}(undef, n)
+        while i != 0
+            @inbounds new_data[i] = getfield(data, i)
+            i -= 1
+        end
+    else
+        new_data = Base.copymutable(data)
+    end
+    LittleSet{T}(new_data)
 end
-function Base.emptymutable(@nospecialize(s::FrozenLittleSet), ::Type{U}=eltype(s)) where {U}
-    LittleSet(U[])
-end
-#endregion empty
-
-#region copy
-# since `Base.copy` is a shallow copy on collections, an immutable collection like `Tuple` the same
-Base.copy(@nospecialize(s::FrozenLittleSet)) = s
-Base.copy(s::UnfrozenLittleSet{T}) where {T} = LittleSet{T}(copy(getfield(s, :data)))
-
-Base.copymutable(@nospecialize(s::FrozenLittleSet)) = LittleSet(eltype(s)[])
-function Base.copymutable(s::UnfrozenLittleSet{T}) where {T}
-    LittleSet{T}(Base.copymutable(getfield(s, :data)))
-end
-#endregion copy
 
 function Base.sizehint!(s::UnfrozenLittleSet, sz)
     sizehint!(getfield(s, :data), sz)
@@ -112,135 +117,32 @@ function Base.sizehint!(s::UnfrozenLittleSet, sz)
 end
 Base.iterate(s::LittleSet, state...) = iterate(getfield(s, :data), state...)
 
-Base.in(x, s::UnfrozenLittleSet) = in(x, getfield(s, :data))
-function Base.in(x, s::FrozenLittleSet)
+function Base.in(x, s::LittleSet)
     data = getfield(s, :data)
-    n = nfields(data)
-    while n > 0
-        isequal(x, getfield(data, n)) && return true
-        n -= 1
+    if isa(data, Tuple)
+        n = nfields(data)
+        while n > 0
+            isequal(x, getfield(data, n)) && return true
+            n -= 1
+        end
+        return false
+    else
+        return in(x, data)
     end
-    return false
 end
 
-function Base.sort(s::UnfrozenLittleSet{T}; ks...) where {T}
-    LittleSet{T}(sort(getfield(s, :data); ks...))
-end
 # HACK: this is a temporary hack to get around the lack of `sort` available for tuples
 function Base.sort(s::FrozenLittleSet{T}; ks...) where {T}
     LittleSet{T}(sort(T[getfield(s, :data)...]; ks...))
 end
+function Base.sort(s::UnfrozenLittleSet{T}; ks...) where {T}
+    LittleSet{T}(sort(getfield(s, :data); ks...))
+end
+
 function Base.sort!(s::UnfrozenLittleSet; ks...)
     sort!(getfield(s, :data); ks...)
     return s
 end
-
-check_count(::Nothing) = nothing
-function check_count(count::Integer)
-    count < 0 && throw(DomainError(count, "`count` must not be negative (got $count)"))
-    return min(count, typemax(Int)) % Int
-end
-
-function replace_state(f, s::FrozenLittleSet, state::Int, cnt::Int)
-    if cnt > 0
-        old_item = unsafe_getstate(s, state)
-        new_item = f(old_item)
-        if old_item == new_item
-            return new_item, cnt
-        else
-            return new_item, cnt - 1
-        end
-    else
-        unsafe_getstate(s, state), 0
-    end
-end
-function replace_state(f, s::FrozenLittleSet, state::Int, ::Nothing)
-    (f(unsafe_getstate(s, state)), nothing)
-end
-
-struct ReplacePairs{N, F, S} <: Function
-    old_new::NTuple{N, Pair{F, S}}
-end
-_secondtype(::ReplacePairs{<:Any, <:Any, S}) where {S} = S
-
-@inline function (rp::ReplacePairs)(item)
-    for (old_item, new_item) in getfield(rp, :old_new)
-        isequal(old_item, item) && return new_item
-    end
-    return item
-end
-
-function Base.replace(s::FrozenLittleSet, old_new::Pair...; count::Union{Integer, Nothing}=nothing)
-    replace(ReplacePairs(old_new), s; count=count)
-end
-function Base.replace(f::Union{Function, Type}, s::FrozenLittleSet{T}; count::Union{Integer, Nothing}=nothing) where {T}
-    data = getfield(s, :data)
-    N = nfields(data)
-    if N === 0
-        newdata = ()
-    elseif N === 1
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        newdata = (i1,)
-    elseif N === 2
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        newdata = (i1, i2)
-    elseif N === 3
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        i3, cnt = replace_state(f, s, 3, cnt)
-        newdata = (i1, i2, i3)
-    elseif N === 4
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        i3, cnt = replace_state(f, s, 3, cnt)
-        i4, cnt = replace_state(f, s, 4, cnt)
-        newdata = (i1, i2, i3, i4)
-    elseif N === 5
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        i3, cnt = replace_state(f, s, 3, cnt)
-        i4, cnt = replace_state(f, s, 4, cnt)
-        i5, cnt = replace_state(f, s, 5, cnt)
-        newdata = (i1, i2, i3, i4, i5)
-    elseif N === 6
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        i3, cnt = replace_state(f, s, 3, cnt)
-        i4, cnt = replace_state(f, s, 4, cnt)
-        i5, cnt = replace_state(f, s, 5, cnt)
-        i6, cnt = replace_state(f, s, 6, cnt)
-        newdata = (i1, i2, i3, i4, i5, i6)
-    elseif N === 7
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        i3, cnt = replace_state(f, s, 3, cnt)
-        i4, cnt = replace_state(f, s, 4, cnt)
-        i5, cnt = replace_state(f, s, 5, cnt)
-        i6, cnt = replace_state(f, s, 6, cnt)
-        i7, cnt = replace_state(f, s, 7, cnt)
-        newdata = (i1, i2, i3, i4, i5, i6, i7)
-    elseif N === 8
-        i1, cnt = replace_state(f, s, 1, check_count(count))
-        i2, cnt = replace_state(f, s, 2, cnt)
-        i3, cnt = replace_state(f, s, 3, cnt)
-        i4, cnt = replace_state(f, s, 4, cnt)
-        i5, cnt = replace_state(f, s, 5, cnt)
-        i6, cnt = replace_state(f, s, 6, cnt)
-        i7, cnt = replace_state(f, s, 7, cnt)
-        i8, cnt = replace_state(f, s, 8, cnt)
-        newdata = (i1, i2, i3, i4, i5, i6, i7, i8)
-    else
-        newdata = Tuple(replace(f, collect(data); count=count))
-    end
-    if isa(s, LittleSet{T, Tuple{Vararg{T}}})
-        Tnew = isa(f, ReplacePairs) ? Union{T, _secondtype(f)} : eltype(newdata)
-        return LittleSet{Tnew, Tuple{Vararg{Tnew}}}(newdata)
-    else
-        return LittleSet(newdata)
-    end
-end
-
 
 Base.first(s::UnfrozenLittleSet, n::Integer) = LittleSet(first(getfield(s, :data), n))
 function Base.first(s::FrozenLittleSet{T}, n::Integer) where {T}
@@ -297,20 +199,6 @@ function Base.union(x::FrozenLittleSet{T1}, y::FrozenLittleSet{T2}) where {T1, T
     end
 end
 
-function Base.filter(f, s::LittleSet{T}) where {T}
-    if isa(s, FrozenLittleSet)
-        N = length(s)
-        if N > 32
-            newdata = Tuple(filter(f, collect(getfield(s, :data))))
-        else
-        end
-        return LittleSet{T, Tuple{Vararg{T}}}(Tuple(filter(f, collect(getfield(s, :data)))))
-    else
-        return LittleSet(filter(f, getfield(s, :data)))
-    end
-end
-
-Base.filter!(f, s::UnfrozenLittleSet) = (filter!(f, getfield(s, :data)); return s)
 function Base.push!(s::UnfrozenLittleSet, val)
     data = getfield(s, :data)
     if !in(val, data)
@@ -322,30 +210,77 @@ end
 Base.pop!(s::UnfrozenLittleSet) = pop!(getfield(s, :data))
 function Base.pop!(s::UnfrozenLittleSet, key)
     data = getfield(s, :data)
-    index = findfirst(isequal(key), data)
-    index === nothing && throw(KeyError(key))
-    deleteat!(data, index)
-    key
+    for i in eachindex(data)
+        k = @inbounds(data[i])
+        if (key ===  k || isequal(key, k))
+            deleteat!(data, i)
+            return k
+        end
+    end
+    throw(KeyError(key))
 end
 function Base.pop!(s::UnfrozenLittleSet, key, default)
     data = getfield(s, :data)
-    index = findfirst(isequal(key), data)
-    if index === nothing
-        return default
-    else
-        deleteat!(data, index)
-        return key
+    for i in eachindex(data)
+        k = @inbounds(data[i])
+        if (key ===  k || isequal(key, k))
+            deleteat!(data, i)
+            return k
+        end
     end
+    return default
 end
 
 Base.empty!(s::UnfrozenLittleSet) = (empty!(getfield(s, :data)); s)
 
 function Base.delete!(s::UnfrozenLittleSet, key)
     data = getfield(s, :data)
-    index = findfirst(isequal(key), data)
-    if index !== nothing
-        deleteat!(getfield(s, :data), index)
+    for i in eachindex(data)
+        k = @inbounds(data[i])
+        if (key ===  k || isequal(key, k))
+            deleteat!(data, i)
+            break
+        end
     end
     return s
 end
 
+function Base.replace(
+    f::Union{Function, Type},
+    s::LittleSet{T};
+    count::Integer=typemax(Int)
+) where {T}
+    newdata = replace(f, getfield(s, :data); count=count)
+    if isa(s, LittleSet{T, Tuple{Vararg{T}}})
+        T2 = eltype(newdata)
+        return LittleSet{T2, Tuple{Vararg{T2}}}(newdata)
+    else
+        return LittleSet(newdata)
+    end
+end
+function Base.replace(
+    s::LittleSet{T},
+    old_new::Pair{F, S}...;
+    count::Integer=typemax(Int)
+) where {T, F, S}
+    newdata = replace(getfield(s, :data), old_new...; count=count)
+    if isa(s, LittleSet{T, Tuple{Vararg{T}}})
+        T2 = Union{T, S}
+        return LittleSet{T2, Tuple{Vararg{T2}}}(newdata)
+    else
+        return LittleSet(newdata)
+    end
+end
+
+function Base.filter(f, s::LittleSet{T}) where {T}
+    newdata = filter(f, getfield(s, :data))
+    if isa(s, OpaqueLittleSet)
+        return OpaqueLittleSet{T}(newdata)
+    else
+        return LittleSet(newdata)
+    end
+end
+function Base.filter!(f, s::UnfrozenLittleSet)
+    filter!(f, getfield(s, :data))
+    return s
+end
