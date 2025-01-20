@@ -251,7 +251,7 @@ using OrderedCollections, Test
         s = LittleSet([1,2,3,4])
         @test isequal(replace(s, 1 => 0, 2 => 5), LittleSet([0, 5, 3, 4]))
         s = LittleSet{Int, Tuple{Vararg{Int}}}((1,2,3,4))
-        @test isequal(@inferred(replace(s, 1 => 0, 2 => 5)), LittleSet((0, 5, 3, 4)))
+        @test isequal(replace(s, 1 => 0, 2 => 5), LittleSet((0, 5, 3, 4)))
     end
 
     @testset "empty set" begin

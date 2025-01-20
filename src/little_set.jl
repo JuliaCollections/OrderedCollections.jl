@@ -18,7 +18,7 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
         new_data = isa(data, Tuple) ? data : Tuple(data)
         new{T, Tuple{Vararg{T}}}(new_data)
     end
-    function OpaqueLittleSet(@nospecialize(data))
+    function OpaquetleSet(@nospecialize(data))
         T = eltype(data)
         new{T, Tuple{Vararg{T}}}(data)
     end
@@ -245,33 +245,6 @@ function Base.delete!(s::UnfrozenLittleSet, key)
     return s
 end
 
-function Base.replace(
-    f::Union{Function, Type},
-    s::LittleSet{T};
-    count::Integer=typemax(Int)
-) where {T}
-    newdata = replace(f, getfield(s, :data); count=count)
-    if isa(s, LittleSet{T, Tuple{Vararg{T}}})
-        T2 = eltype(newdata)
-        return LittleSet{T2, Tuple{Vararg{T2}}}(newdata)
-    else
-        return LittleSet(newdata)
-    end
-end
-function Base.replace(
-    s::LittleSet{T},
-    old_new::Pair{F, S}...;
-    count::Integer=typemax(Int)
-) where {T, F, S}
-    newdata = replace(getfield(s, :data), old_new...; count=count)
-    if isa(s, LittleSet{T, Tuple{Vararg{T}}})
-        T2 = Union{T, S}
-        return LittleSet{T2, Tuple{Vararg{T2}}}(newdata)
-    else
-        return LittleSet(newdata)
-    end
-end
-
 function Base.filter(f, s::LittleSet{T}) where {T}
     newdata = filter(f, getfield(s, :data))
     if isa(s, OpaqueLittleSet)
@@ -283,4 +256,110 @@ end
 function Base.filter!(f, s::UnfrozenLittleSet)
     filter!(f, getfield(s, :data))
     return s
+end
+
+mutable struct Replace{F}
+    const f::F
+    count::Int
+end
+
+# these are copied from Julia's "base/set.jl" because tuple replace isn't
+# supported before Julia v1.7
+function check_count(count::Integer)
+    count < 0 && throw(DomainError(count, "`count` must not be negative (got $count)"))
+    return min(count, typemax(Int)) % Int
+end
+
+
+function (f::Replace{F})(old_item) where {F}
+    c = getfield(f, :count)
+    if c > 0
+        return old_item
+    else
+        if F <: Tuple
+            for p in getfield(f, :f)
+                p1, p2 = p
+                if old_item == p1
+                    setifield!(f, c - 1)
+                    return p2
+                end
+            end
+            return old_item
+        else
+            new_item = getfield(f, :f)(old_item)
+            if new_item != old_item
+                setifield!(f, c - 1)
+            end
+        end
+        return new_item
+    end
+end
+
+function Base.replace(
+    s::LittleSet{T},
+    old_new::Pair{F, S}...;
+    count::Integer=typemax(Int)
+) where {T, F, S}
+    replace(s; count=count) do x
+        @inline
+        for o_n in old_new
+            isequal(first(o_n), x) && return last(o_n)
+        end
+        return x
+    end
+end
+
+# function Base.replace(
+#     s::LittleSet{T},
+#     old_new::Pair{F, S}...;
+#     count::Integer=typemax(Int)
+# ) where {T, F, S}
+#     old_data = getfield(s, :data)
+#     if isa(old_data, Tuple)
+#         new_data = map(Replace(old_new, count), old_data)
+#         T2 = eltype(new_data)
+#         if isa(s, LittleSet{T, Tuple{Vararg{T}}})
+#             return LittleSet{T2, Tuple{Vararg{T2}}}(new_data)
+#         else
+#             return LittleSet{T2, typeof(new_data)}(new_data)
+#         end
+#     else
+#         new_data = replace(old_data, old_new...; count=count)
+#         return LittleSet(new_data)
+#     end
+# end
+
+function Base.replace(
+    f::Union{Function, Type},
+    s::LittleSet{T, D};
+    count::Integer=typemax(Int)
+) where {T, D}
+    old_data = getfield(s, :data)
+    if isa(old_data, Tuple)
+        c = check_count(count)
+        n = nfields(old_data)
+        v = Vector{Any}(undef, n)
+        for i in Base.OneTo(n)
+            old_item = @inbounds(getfield(old_data, i))
+            if c > 0
+                new_item = f(old_item)
+                if new_item == old_item
+                    c -= 1
+                end
+            else
+                new_item = old_item
+            end
+            @inbounds(setindex!(v, new_item, i))
+        end
+        new_data = (v...,)
+        T2 = eltype(new_data)
+        if isa(s, LittleSet{T, Tuple{Vararg{T}}})
+            return LittleSet{T2, Tuple{Vararg{T2}}}(new_data)
+        else
+            return LittleSet{T2, typeof(new_data)}(new_data)
+        end
+    else
+        new_data = replace(f, old_data, count=count)
+        return LittleSet(new_data)
+    end
 end
