@@ -266,30 +266,6 @@ function check_count(count::Integer)
 end
 
 
-function (f::Replace{F})(old_item) where {F}
-    c = getfield(f, :count)
-    if c > 0
-        return old_item
-    else
-        if F <: Tuple
-            for p in getfield(f, :f)
-                p1, p2 = p
-                if old_item == p1
-                    setifield!(f, c - 1)
-                    return p2
-                end
-            end
-            return old_item
-        else
-            new_item = getfield(f, :f)(old_item)
-            if new_item != old_item
-                setifield!(f, c - 1)
-            end
-        end
-        return new_item
-    end
-end
-
 function Base.replace(
     s::LittleSet{T},
     old_new::Pair{F, S}...;
