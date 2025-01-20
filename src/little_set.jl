@@ -9,10 +9,6 @@ a `Tuple` and is optimal for 30-50 elements, similar to [`LittleDict`](@ref).
 struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
     data::D
 
-    global const UnfrozenLittleSet{T} = LittleSet{T, <:AbstractVector{T}}
-    global const FrozenLittleSet{T} = LittleSet{T, <:Tuple}
-    global const OpaqueLittleSet{T} = LittleSet{T, Tuple{Vararg{T}}}
-
     LittleSet{T, D}(data) where {T,D} = new{T, D}(data)
     function OpaqueLittleSet{T}(@nospecialize(data)) where {T}
         new_data = isa(data, Tuple) ? data : Tuple(data)
@@ -66,6 +62,10 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
         return new{U, typeof(new_data)}(new_data)
     end
 end
+
+const UnfrozenLittleSet{T} = LittleSet{T, <:AbstractVector{T}}
+const FrozenLittleSet{T} = LittleSet{T, <:Tuple}
+const OpaqueLittleSet{T} = LittleSet{T, Tuple{Vararg{T}}}
 
 function Base.Tuple(s::LittleSet)
     data = getfield(s, :data)
