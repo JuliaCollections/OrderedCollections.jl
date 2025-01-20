@@ -258,11 +258,6 @@ function Base.filter!(f, s::UnfrozenLittleSet)
     return s
 end
 
-mutable struct Replace{F}
-    const f::F
-    count::Int
-end
-
 # these are copied from Julia's "base/set.jl" because tuple replace isn't
 # supported before Julia v1.7
 function check_count(count::Integer)
