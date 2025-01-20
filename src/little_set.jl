@@ -265,41 +265,18 @@ function check_count(count::Integer)
     return min(count, typemax(Int)) % Int
 end
 
-
 function Base.replace(
     s::LittleSet{T},
     old_new::Pair{F, S}...;
     count::Integer=typemax(Int)
 ) where {T, F, S}
     replace(s; count=count) do x
-        @inline
         for o_n in old_new
             isequal(first(o_n), x) && return last(o_n)
         end
         return x
     end
 end
-
-# function Base.replace(
-#     s::LittleSet{T},
-#     old_new::Pair{F, S}...;
-#     count::Integer=typemax(Int)
-# ) where {T, F, S}
-#     old_data = getfield(s, :data)
-#     if isa(old_data, Tuple)
-#         new_data = map(Replace(old_new, count), old_data)
-#         T2 = eltype(new_data)
-#         if isa(s, LittleSet{T, Tuple{Vararg{T}}})
-#             return LittleSet{T2, Tuple{Vararg{T2}}}(new_data)
-#         else
-#             return LittleSet{T2, typeof(new_data)}(new_data)
-#         end
-#     else
-#         new_data = replace(old_data, old_new...; count=count)
-#         return LittleSet(new_data)
-#     end
-# end
-
 function Base.replace(
     f::Union{Function, Type},
     s::LittleSet{T, D};
