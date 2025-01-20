@@ -10,13 +10,13 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
     data::D
 
     LittleSet{T, D}(data) where {T,D} = new{T, D}(data)
-    function OpaqueLittleSet{T}(@nospecialize(data)) where {T}
+    function LittleSet{T, Tuple{Vararg{T}}}(@nospecialize(data)) where {T}
         new_data = isa(data, Tuple) ? data : Tuple(data)
         new{T, Tuple{Vararg{T}}}(new_data)
     end
-    function OpaquetleSet(@nospecialize(data))
-        T = eltype(data)
-        new{T, Tuple{Vararg{T}}}(data)
+    function (LittleSet{T, Tuple{Vararg{T}}} where {T})(@nospecialize(data))
+        T2 = eltype(data)
+        new{T2, Tuple{Vararg{T2}}}(data)
     end
     function LittleSet{T}(data::AbstractVector) where {T}
         if eltype(data) == T
@@ -45,7 +45,7 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
     end
 
     function Base.empty(s::LittleSet{T, D}) where {T, D}
-        if isa(s, OpaqueLittleSet)
+        if isa(s, LittleSet{T, Tuple{Vararg{T}}})
             return new{T, Tuple{Vararg{T}}}(())
         elseif D <: Tuple
             return new{T, Tuple{}}(())
@@ -63,9 +63,9 @@ struct LittleSet{T, D<:StoreType{T}} <: AbstractSet{T}
     end
 end
 
+const OpaqueLittleSet{T} = LittleSet{T, Tuple{Vararg{T}}}
 const UnfrozenLittleSet{T} = LittleSet{T, <:AbstractVector{T}}
 const FrozenLittleSet{T} = LittleSet{T, <:Tuple}
-const OpaqueLittleSet{T} = LittleSet{T, Tuple{Vararg{T}}}
 
 function Base.Tuple(s::LittleSet)
     data = getfield(s, :data)
