@@ -81,6 +81,20 @@ using OrderedCollections, Test
         @test od60[14] == 15
     end
 
+    @testset "Issue #87" begin
+        od1 = OrderedDict(nothing => 1, 2 => 3)
+        delete!(od1, nothing)
+        @test OrderedDict(2 => 3) == OrderedDict(od1...)
+
+        od2 = OrderedDict(2 => 0.1, nothing => 0.2, 3 => 0.5)
+        delete!(od2, nothing)
+        @test OrderedDict(2 => 0.1, 3 => 0.5) == OrderedDict(od2...)
+
+        od3 = OrderedDict(2 => 0.1, 5 => 0.4, nothing => 0.03, 10 => 0.4)
+        delete!(od3, nothing)
+        @test OrderedDict(2 => 0.1, 5 => 0.4, 10 => 0.4) == OrderedDict(od3...)
+    end
+
 
     ##############################
     # Copied and modified from Base/test/dict.jl
@@ -407,20 +421,39 @@ using OrderedCollections, Test
     end
 
     @testset "Sorting" begin
-        d = Dict(i=>Char(123-i) for i = 1:10)
-        @test collect(keys(d)) != 1:10
-        sd = sort!(OrderedDict(d))
+        ks = [4, 8, 1, 7, 9, 3, 10, 2, 6, 5]
+        d = OrderedDict(i=>Char(123-i) for i in ks)
+
+        sd = sort(d)
+        @test collect(keys(d)) == ks    # verify d is not changed by sort()
         @test collect(keys(sd)) == 1:10
         @test collect(values(sd)) == collect('z':-1:'q')
         @test sort(sd) == sd
-        sdv = sort!(OrderedDict(d); byvalue=true)
+
+        sdv = sort(d; byvalue=true)
+        @test collect(keys(d)) == ks    # verify d is not changed by sort()
         @test collect(keys(sdv)) == 10:-1:1
         @test collect(values(sdv)) == collect('q':'z')
+
+        sort!(d)
+        @test collect(keys(d)) == 1:10
+        @test collect(values(d)) == collect('z':-1:'q')
+        @test sort(d) == d == sd
+
+        sort!(d; byvalue=true)
+        @test collect(keys(d)) == 10:-1:1
+        @test collect(values(d)) == collect('q':'z')
+        @test sort(d) == d == sd
     end
 
     @testset "Test that OrderedDict merge with combiner returns type OrderedDict" begin
         @test merge(+, OrderedDict(:a=>1, :b=>2), OrderedDict(:b=>7, :c=>4)) == OrderedDict(:a=>1, :b=>9, :c=>4)
         @test merge(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
+    end
+
+    @testset "Test that OrderedDict mergewith returns type OrderedDict" begin
+        @test mergewith(+, OrderedDict(:a=>1, :b=>2), OrderedDict(:b=>7, :c=>4)) == OrderedDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, OrderedDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa OrderedDict
     end
 
     @testset "map!(f, values(OrderedDict))" begin
@@ -455,11 +488,68 @@ using OrderedCollections, Test
         @test od[14] == 14
     end
 
+    @testset "Issue #65" begin
+        x = OrderedDict{OrderedDict, Int}()
+        x[x] = 0  # There's no reason to ever do this, but it shouldn't overflow the stack
+        @test length(deepcopy(x)) == 1
+
+        # Test that a rehash isn't triggered during setindex! with only a few keys added/removed.
+        # It should only be triggered when a count equal to 3/4 of the slots have been removed.
+        # With the smallest size dict, that would be 12/16
+        od = OrderedDict{Int,Int}(i=>i for i in 1:5)
+        for i in 1:4
+            pop!(od, i)
+        end
+        del_slots1 = sum(od.slots .< 0)
+        od[6] = 6
+        del_slots2 = sum(od.slots .< 0)
+        @test del_slots1 - 1 <= del_slots2 <= del_slots1
+
+        for i in 7:14
+            od[i] = i
+        end
+        for i in 5:13
+            pop!(od, i)
+        end
+        del_slots3 = sum(od.slots .< 0)
+        # Some of the previously deleted slots might have been reused, but we should at
+        # least see deleted slots for items 5 through 13
+        @test del_slots3 >= 9
+        # We've now removed 13 items, so the next assignment should trigger a rehash
+        od[15] = 15
+        del_slots4 = sum(od.slots .< 0)
+        @test del_slots4 == 0
+    end
+
+    @testset "Issue #86" begin
+        counter = 0
+        expensive_function(k) = (counter += 1; k > 2 && error("too large!"))
+        @test_throws ErrorException OrderedDict(k => expensive_function(k) for k in 1:3)
+        if VERSION >= v"1.11"
+            @test counter == 3
+        else
+            @test_broken counter == 3  # gives 6 instead
+        end
+    end
+
     @testset "ordered access" begin
-        od = OrderedDict(:a=>1, :b=>2, :c=>3)  
+        od = OrderedDict(:a=>1, :b=>2, :c=>3)
         @test popfirst!(od) == (:a => 1)
         @test :a ∉ keys(od)
         @test pop!(od) == (:c => 3)
         @test :c ∉ keys(od)
     end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        od   = OrderedDict(k=>v for (k,v) in zip(ks, vs))
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(od))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
+    end
+
 end # @testset OrderedDict

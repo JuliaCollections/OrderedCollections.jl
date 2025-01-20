@@ -69,7 +69,7 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
             LittleDict{Int,Float64, Vector{Int}, Vector{Float64}}
 
         @test @inferred(LittleDict{Int, Char}(rand(1:100,20), rand('a':'z', 20))) isa
-            LittleDict{Int,Char,Array{Int,1},Array{Char,1}}
+            LittleDict{Int,Char,Vector{Int},Vector{Char}}
 
         # Different number of keys and values
         @test_throws ArgumentError LittleDict{Int, Char, Vector{Int}, Vector{Char}}([1,2,3], ['a','b'])
@@ -103,10 +103,11 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test !('B' in keys(d))
         @test !haskey(d, 'B')
         @test pop!(d, 'a') == 2
+        @test pop!(d) == 26  # z was added last
 
-        @test collect(keys(d)) == collect('b':'z')
-        @test collect(values(d)) == collect(2:26)
-        @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'z', 2:26)]
+        @test collect(keys(d)) == collect('b':'y')
+        @test collect(values(d)) == collect(2:25)
+        @test collect(d) == [Pair(a,i) for (a,i) in zip('b':'y', 2:25)]
     end
 
     @testset "convert" begin
@@ -377,17 +378,21 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test get!(d, 8, 5) == 19
         @test get!(d, 19, 2) == 2
 
-        @test get!(d, 42) do  # d is updated with f(2)
+        @test get!(d, 42) do  # key not found, d is updated with f(2)
             f(2)
         end == 4
 
-        @test get!(d, 42) do  # d is not updated
+        @test get!(d, 42) do  # key found, d is not updated
             f(200)
         end == 4
 
-        @test get(d, 13) do   # d is not updated
+        @test get(d, 13) do   # key not found, d is not updated
             f(4)
         end == 16
+
+        @test get(d, 42) do   # key found, d is not updated
+            error("this code is not reached")
+        end == 4
 
         @test d == LittleDict(8=>19, 19=>2, 42=>4)
     end
@@ -490,21 +495,39 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
     end
 
     @testset "Sorting" begin
-        d = LittleDict(i=>Char(123-i) for i in [4, 8, 1, 7, 9, 3, 10, 2, 6, 5])
+        ks = [4, 8, 1, 7, 9, 3, 10, 2, 6, 5]
+        d = LittleDict(i=>Char(123-i) for i in ks)
 
-        @test collect(keys(d)) != 1:10
         sd = sort(d)
+        @test collect(keys(d)) == ks    # verify d is not changed by sort()
         @test collect(keys(sd)) == 1:10
         @test collect(values(sd)) == collect('z':-1:'q')
         @test sort(sd) == sd
+
         sdv = sort(d; byvalue=true)
+        @test collect(keys(d)) == ks    # verify d is not changed by sort()
         @test collect(keys(sdv)) == 10:-1:1
         @test collect(values(sdv)) == collect('q':'z')
+
+        sort!(d)
+        @test collect(keys(d)) == 1:10
+        @test collect(values(d)) == collect('z':-1:'q')
+        @test sort(d) == d == sd
+
+        sort!(d; byvalue=true)
+        @test collect(keys(d)) == 10:-1:1
+        @test collect(values(d)) == collect('q':'z')
+        @test sort(d) == d == sd
     end
 
     @testset "Test that LittleDict merge with combiner returns type LittleDict" begin
         @test merge(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
         @test merge(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
+    end
+
+    @testset "Test that LittleDict mergewith returns type LittleDict" begin
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), LittleDict(:b=>7, :c=>4)) == LittleDict(:a=>1, :b=>9, :c=>4)
+        @test mergewith(+, LittleDict(:a=>1, :b=>2), Dict(:b=>7, :c=>4)) isa LittleDict
     end
 
     @testset "issue #27" begin
@@ -559,5 +582,18 @@ end # @testset LittleDict
         map!(v->v-1, values(testdict))
         @test testdict[:a] == 0
         @test testdict[:b] == 1
-end
+    end
+
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        vs = collect(0:25)
+        ld = LittleDict(ks, vs)
+        pass = true
+        for (n,(k,v)) in enumerate(Iterators.reverse(ld))
+            pass &= reverse(ks)[n] == k
+            pass &= reverse(vs)[n] == v
+        end
+        @test pass
+    end
+
 end

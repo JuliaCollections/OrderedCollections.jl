@@ -11,7 +11,7 @@ using OrderedCollections, Test
         data_in = (1, "banana", ())
         s = OrderedSet(data_in)
         data_out = collect(s)
-        @test isa(data_out, Array{Any,1})
+        @test isa(data_out, Vector{Any})
         @test tuple(data_out...) === data_in
         @test tuple(data_in...) === tuple(s...)
         @test length(data_out) == length(data_in)
@@ -259,4 +259,13 @@ using OrderedCollections, Test
         @test issorted(ox; rev=true)
     end
 
+    @testset "lazy reverse iteration" begin
+        ks = collect('a':'z')
+        os  = OrderedSet(ks)
+        pass = true
+        for (n,k) in enumerate(Iterators.reverse(os))
+            pass &= reverse(ks)[n] == k
+        end
+        @test pass
+    end
 end # @testset OrderedSet

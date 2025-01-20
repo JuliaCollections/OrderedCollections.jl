@@ -61,7 +61,7 @@ function LittleDict{K, V}(itr) where {K,V}
     ks = K[]
     vs = V[]
     for val in itr
-        if !(val isa Union{Tuple{<:Any, <:Any}, Pair})
+        if !(val isa Union{Tuple{Any, Any}, Pair})
             throw(ArgumentError(
                 "LittleDict(kv): kv needs to be an iterator of tuples or pairs")
             )
@@ -154,12 +154,19 @@ function Base.iterate(dd::LittleDict, ii=1)
     return (dd.keys[ii] => dd.vals[ii], ii+1)
 end
 
+# lazy reverse iteration
+function Base.iterate(rdd::Iterators.Reverse{<:LittleDict}, ii=length(rdd.itr.keys))
+    dd = rdd.itr
+    ii < 1 && return nothing
+    return (dd.keys[ii] => dd.vals[ii], ii-1)
+end
+
 function merge(d1::LittleDict, others::AbstractDict...)
     return merge((x,y)->y, d1, others...)
 end
 
-function merge(
-    combine::Function,
+function mergewith(
+    combine,
     d::LittleDict,
     others::AbstractDict...
     )
@@ -180,6 +187,7 @@ function merge(
     return dc
 end
 
+merge(combine::Function, d::LittleDict, others::AbstractDict...) = mergewith(combine, d, others...)
 
 function Base.empty(dd::LittleDict{K,V}) where {K,V}
     LittleDict{K, V}(empty(getfield(dd, :keys)), empty(getfield(dd, :vals)))
@@ -204,7 +212,6 @@ function add_new!(dd::UnfrozenLittleDict{K, V}, key, value) where {K, V}
 
     return dd
 end
-
 
 function Base.setindex!(dd::LittleDict{K,V, <:Any, <:Vector}, value, key) where {K,V}
     # Note we only care if the Value store is mutable (<:Vector)

@@ -8,7 +8,7 @@ module OrderedCollections
                  isequal, hash,
                  map, map!, reverse,
                  first, last, eltype, getkey, values, sum,
-                 merge, merge!, lt, Ordering, ForwardOrdering, Forward,
+                 merge, merge!, mergewith, lt, Ordering, ForwardOrdering, Forward,
                  ReverseOrdering, Reverse, Lt,
                  isless,
                  union, intersect, symdiff, setdiff, setdiff!, issubset,
