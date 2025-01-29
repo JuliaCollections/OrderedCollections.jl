@@ -77,6 +77,7 @@ Indeed the preceeding example (with the io redirected to `devnull`), runs 4x fas
 OrderedDict
 OrderedSet
 LittleDict
+LittleSet
 freeze
 OrderedCollections.isordered
 ```
