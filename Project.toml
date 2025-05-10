@@ -1,6 +1,6 @@
 name = "OrderedCollections"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
-version = "1.8.0"
+version = "1.8.1"
 
 [compat]
 julia = "1.7.1"
