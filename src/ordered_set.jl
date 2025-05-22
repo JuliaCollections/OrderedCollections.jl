@@ -87,7 +87,11 @@ end
 function hash(s::OrderedSet, h::UInt)
     h = hash(orderedset_seed, h)
     s.dict.ndel > 0 && rehash!(s.dict)
-    hash(s.dict.keys, h)
+    h_2 = UInt(0)
+    for k in s.dict.keys
+        h_2 ⊻= hash(k, h)
+    end
+    h_2
 end
 
 # Deprecated functionality, see

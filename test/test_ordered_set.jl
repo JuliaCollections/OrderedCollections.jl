@@ -21,7 +21,7 @@ using OrderedCollections, Test
         s1 = OrderedSet{String}(["bar", "foo"])
         s2 = OrderedSet{String}(["foo", "bar"])
         s3 = OrderedSet{String}(["baz"])
-        @test hash(s1) != hash(s2)
+        @test hash(s1) == hash(s2)
         @test hash(s1) != hash(s3)
     end
 
