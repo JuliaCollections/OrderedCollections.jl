@@ -45,6 +45,7 @@ struct LittleDict{K, V, KS<:StoreType{K}, VS<:StoreType{V}} <: AbstractDict{K, V
     LittleDict{K, V, <:Tuple, <:Tuple}() where {K, V} = new{K, V, Tuple{}, Tuple{}}((), ())
     LittleDict{K, V, KS, VS}() where {K, V, KS, VS} = LittleDict{K, V, KS, VS}(KS(), VS())
 end
+LittleDict{K, V, KS, VS}(d::AbstractDict) where {K, V, KS<:StoreType{K}, VS<:StoreType{V}} = LittleDict{K, V, KS, VS}(collect(keys(d)), collect(values(d)))
 
 function LittleDict{K,V}(ks::KS, vs::VS) where {K,V, KS<:StoreType,VS<:StoreType}
     return LittleDict{K, V, KS, VS}(ks, vs)

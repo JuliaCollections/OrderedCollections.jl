@@ -119,6 +119,10 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test valtype(dc) == Float64
         @test keys(dc) == keys(d)
         @test collect(values(dc)) == collect(values(d))
+
+        d = Dict(i=>Float32(i) for i = 1:10)
+        @test convert(LittleDict{Int,Float32}, d) isa LittleDict{Int,Float32}
+        @test convert(LittleDict{Int,Float32,Vector{Int},Vector{Float32}}, d) isa LittleDict{Int,Float32,Vector{Int},Vector{Float32}}
     end
 
     @testset "Issue #60" begin
