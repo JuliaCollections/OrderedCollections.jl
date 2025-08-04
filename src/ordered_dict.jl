@@ -212,7 +212,7 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
     return h
 end
 
-function sizehint!(d::OrderedDict, newsz)
+function sizehint!(d::OrderedDict, newsz::Integer)
     slotsz = (newsz*3)>>1
     oldsz = length(d.slots)
     if slotsz <= oldsz
