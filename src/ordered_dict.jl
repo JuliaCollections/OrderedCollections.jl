@@ -100,24 +100,6 @@ defined order (such as `OrderedDict` and `SortedDict`), and `false` otherwise.
 isordered(::Type{T}) where {T<:AbstractDict} = false
 isordered(::Type{T}) where {T<:OrderedDict} = true
 
-# conversion between OrderedDict types
-function convert(::Type{OrderedDict{K,V}}, d::AbstractDict) where {K,V}
-    d isa OrderedDict{K, V} && return d
-    if !isordered(typeof(d))
-        Base.depwarn("Conversion to OrderedDict is deprecated for unordered associative containers (in this case, $(typeof(d))). Use an ordered or sorted associative type, such as SortedDict and OrderedDict.", :convert)
-    end
-    h = OrderedDict{K,V}()
-    for (k,v) in d
-        ck = convert(K,k)
-        if !haskey(h,ck)
-            h[ck] = convert(V,v)
-        else
-            error("key collision during dictionary conversion")
-        end
-    end
-    return h
-end
-
 isslotempty(slot_value::Integer) = slot_value == 0
 isslotfilled(slot_value::Integer) = slot_value > 0
 isslotmissing(slot_value::Integer) = slot_value < 0
