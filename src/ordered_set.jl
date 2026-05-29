@@ -18,10 +18,11 @@ struct OrderedSet{T}  <: AbstractSet{T}
     OrderedSet{T}(xs) where {T} = union!(OrderedSet{T}(), xs)
     function OrderedSet{T}(s::Base.KeySet{T, <:OrderedDict{T}}) where {T}
         d = s.dict
-        slots = copy(d.slots)
+        ctrl = copy(d.ctrl)
+        idx = copy(d.idx)
         keys = copy(d.keys)
         vals = similar(d.vals, Nothing)
-        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, d.ndel, d.maxprobe, d.dirty))
+        new{T}(OrderedDict{T,Nothing}(ctrl, idx, keys, vals, d.ndel, d.dirty))
     end
 end
 

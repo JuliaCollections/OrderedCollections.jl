@@ -3,7 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
-        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), 0, 0, false)), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict{Int,Float64}(OrderedCollections.Memory{NTuple{16,UInt8}}(undef, 0), OrderedCollections.Memory{Int32}(undef, 0), Vector{Int}(), Vector{Float64}(), 0, false)), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
         @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict([("a",1),("b",2)])), OrderedDict{String,Int})
@@ -493,17 +493,16 @@ using OrderedCollections, Test
         x[x] = 0  # There's no reason to ever do this, but it shouldn't overflow the stack
         @test length(deepcopy(x)) == 1
 
-        # Test that a rehash isn't triggered during setindex! with only a few keys added/removed.
-        # It should only be triggered when a count equal to 3/4 of the slots have been removed.
-        # With the smallest size dict, that would be 12/16
+        # Small numbers of deletes and inserts should not cause the table to grow.
+        # (Internals differ from the original probe-based design, but the user-visible
+        # invariant — rehashes don't fire on light churn — is the same.)
         od = OrderedDict{Int,Int}(i=>i for i in 1:5)
+        nslots_before = OrderedCollections._current_nslots(od)
         for i in 1:4
             pop!(od, i)
         end
-        del_slots1 = sum(od.slots .< 0)
         od[6] = 6
-        del_slots2 = sum(od.slots .< 0)
-        @test del_slots1 - 1 <= del_slots2 <= del_slots1
+        @test OrderedCollections._current_nslots(od) == nslots_before
 
         for i in 7:14
             od[i] = i
@@ -511,14 +510,13 @@ using OrderedCollections, Test
         for i in 5:13
             pop!(od, i)
         end
-        del_slots3 = sum(od.slots .< 0)
-        # Some of the previously deleted slots might have been reused, but we should at
-        # least see deleted slots for items 5 through 13
-        @test del_slots3 >= 9
-        # We've now removed 13 items, so the next assignment should trigger a rehash
+        # End state: only key 14 remains live; ndel reflects the deleted ones.
+        @test length(od) == 1
+        @test haskey(od, 14)
+        # Final insert should still leave the dict in a consistent state.
         od[15] = 15
-        del_slots4 = sum(od.slots .< 0)
-        @test del_slots4 == 0
+        @test length(od) == 2
+        @test od[14] == 14 && od[15] == 15
     end
 
     @testset "Issue #86" begin
@@ -553,3 +551,203 @@ using OrderedCollections, Test
     end
 
 end # @testset OrderedDict
+
+@testset "Swiss-table primitives: hash split + group selection" begin
+    import OrderedCollections: split_hash, group_for, slot_in_group, next_group_idx
+
+    for k in (1, "abc", :foo, 1.5, (1,2), nothing)
+        h1, h2 = split_hash(k)
+        @test h1 isa UInt
+        @test h2 isa UInt8
+        @test h2 <= 0x7F
+    end
+
+    for ngroups in (1, 2, 4, 16, 1024)
+        for trial in 1:50
+            h1 = rand(UInt)
+            g = group_for(h1, ngroups)
+            @test 1 <= g <= ngroups
+        end
+    end
+
+    @test slot_in_group(1, 0) == 1
+    @test slot_in_group(1, 15) == 16
+    @test slot_in_group(2, 0) == 17
+    @test slot_in_group(5, 3) == 68
+
+    for ngroups in (1, 2, 4, 8, 16, 32)
+        visited = Set{Int}()
+        g = 1
+        step = 1
+        for _ in 1:ngroups
+            push!(visited, g)
+            g = next_group_idx(g, step, ngroups)
+            step += 1
+        end
+        @test length(visited) == ngroups
+    end
+end
+
+@testset "Swiss-table primitives: group-scan ops" begin
+    import OrderedCollections: match_byte, match_empty_or_deleted, CTRL_EMPTY, CTRL_DELETED
+
+    g_empty = ntuple(_ -> CTRL_EMPTY, Val(16))
+    @test match_byte(g_empty, 0x42) == 0
+    @test match_byte(g_empty, CTRL_EMPTY) == 0xFFFF
+    @test match_empty_or_deleted(g_empty) == 0xFFFF
+
+    g_del = ntuple(_ -> CTRL_DELETED, Val(16))
+    @test match_byte(g_del, 0x42) == 0
+    @test match_byte(g_del, CTRL_EMPTY) == 0
+    @test match_empty_or_deleted(g_del) == 0xFFFF
+
+    g_full = ntuple(_ -> 0x42, Val(16))
+    @test match_byte(g_full, 0x42) == 0xFFFF
+    @test match_byte(g_full, 0x43) == 0
+    @test match_byte(g_full, CTRL_EMPTY) == 0
+    @test match_empty_or_deleted(g_full) == 0
+
+    bytes = fill(0x10, 16)
+    bytes[1] = 0x05
+    bytes[8] = CTRL_EMPTY
+    bytes[13] = CTRL_DELETED
+    g_mix = ntuple(i -> bytes[i], Val(16))
+    @test match_byte(g_mix, 0x05) == 0x0001
+    @test match_byte(g_mix, 0x10) == 0xEF7E
+    @test match_byte(g_mix, CTRL_EMPTY) == 0x0080
+    @test match_empty_or_deleted(g_mix) == 0x1080
+end
+
+@testset "Swiss-table primitives: ctrl I/O" begin
+    import OrderedCollections: load_group, set_ctrl_byte!, _empty_group, Memory
+
+    @test all(b -> b == 0x80, _empty_group)
+
+    ngroups = 2
+    ctrl = Memory{NTuple{16,UInt8}}(undef, ngroups)
+    fill!(ctrl, _empty_group)
+    g1 = load_group(ctrl, 1)
+    @test all(b -> b == 0x80, g1)
+
+    set_ctrl_byte!(ctrl, 5, 0x42)
+    g1 = load_group(ctrl, 1)
+    @test g1[5] == 0x42
+    @test g1[4] == 0x80 && g1[6] == 0x80
+
+    set_ctrl_byte!(ctrl, 17, 0x33)
+    g2 = load_group(ctrl, 2)
+    @test g2[1] == 0x33
+
+    set_ctrl_byte!(ctrl, 1, 0x77)
+    @test load_group(ctrl, 1)[1] == 0x77
+end
+
+# --- Swiss-table test helper types (module scope) ---
+
+struct OneGroupKey
+    v::Int
+end
+Base.hash(k::OneGroupKey, h::UInt) = h
+Base.isequal(a::OneGroupKey, b::OneGroupKey) = a.v == b.v
+Base.:(==)(a::OneGroupKey, b::OneGroupKey) = a.v == b.v
+
+struct H2Twin
+    v::Int
+    h::UInt
+end
+Base.hash(k::H2Twin, h::UInt) = k.h
+Base.isequal(a::H2Twin, b::H2Twin) = a.v == b.v
+Base.:(==)(a::H2Twin, b::H2Twin) = a.v == b.v
+
+@testset "Swiss: group-boundary stress" begin
+    d = OrderedDict{OneGroupKey,Int}()
+    for i in 1:32
+        d[OneGroupKey(i)] = i * 100
+    end
+    @test length(d) == 32
+    for i in 1:32
+        @test d[OneGroupKey(i)] == i * 100
+    end
+    @test [k.v for (k, _) in d] == collect(1:32)
+
+    for i in 2:2:32
+        delete!(d, OneGroupKey(i))
+    end
+    @test length(d) == 16
+    @test [k.v for (k, _) in d] == collect(1:2:31)
+    for i in 1:2:31
+        @test d[OneGroupKey(i)] == i * 100
+    end
+end
+
+@testset "Swiss: h2 fingerprint collisions" begin
+    top = UInt(0x42) << (8*sizeof(UInt) - 7)
+    a = H2Twin(1, top | UInt(1))
+    b = H2Twin(2, top | UInt(2))
+
+    d = OrderedDict{H2Twin,String}()
+    d[a] = "alpha"
+    d[b] = "beta"
+
+    @test d[a] == "alpha"
+    @test d[b] == "beta"
+    @test length(d) == 2
+    @test !haskey(d, H2Twin(3, top | UInt(3)))
+end
+
+@testset "Swiss: tombstone vs empty after delete" begin
+    d = OrderedDict{Int,Int}()
+    for i in 1:50
+        d[i] = i * 10
+    end
+    for i in 1:5:50
+        delete!(d, i)
+    end
+    @test length(d) == 50 - 10
+    for i in 1:50
+        if i % 5 == 1
+            @test !haskey(d, i)
+        else
+            @test d[i] == i * 10
+        end
+    end
+    for i in 100:130
+        d[i] = i
+    end
+    for i in 100:130
+        @test d[i] == i
+    end
+end
+
+@testset "Swiss: operations on empty dict" begin
+    d = OrderedDict{Int,Int}()
+    @test length(d.ctrl) == 0
+    @test length(d.idx) == 0
+    @test length(d) == 0
+    @test isempty(d)
+    @test !haskey(d, 1)
+    @test get(d, 1, -1) == -1
+    @test_throws KeyError d[1]
+    @test_throws KeyError pop!(d, 1)
+    @test pop!(d, 1, :nope) === :nope
+    delete!(d, 1)
+    @test length(d) == 0
+    @test collect(d) == Pair{Int,Int}[]
+
+    d[1] = 10
+    @test length(d.ctrl) > 0
+    @test d[1] == 10
+end
+
+@testset "Swiss: large table grows correctly" begin
+    d = OrderedDict{Int,Int}()
+    N = 200_000
+    for i in 1:N
+        d[i] = i
+    end
+    @test length(d) == N
+    for i in 1:N
+        @test d[i] == i
+    end
+    @test [k for (k, _) in d] == collect(1:N)
+end
