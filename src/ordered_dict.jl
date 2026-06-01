@@ -19,8 +19,14 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     dirty::Bool
 end
 
+# Shared read-only slot table for empty dicts: a single empty slot, so that
+# ht_keyindex runs its normal probe (index 1 reads 0 -> not found) with no
+# per-call emptiness branch on the hot path. Never mutated: ht_keyindex2 grows
+# to a real table before any write, so all empty dicts can alias this safely.
+const _EMPTY_SLOTS = (let m = Memory{Int32}(undef, 1); @inbounds m[1] = Int32(0); m end)
+
 function OrderedDict{K,V}() where {K,V}
-    OrderedDict{K,V}(Memory{Int32}(undef, 0), Memory{K}(undef, 0), Memory{V}(undef, 0), 0, 0, false)
+    OrderedDict{K,V}(_EMPTY_SLOTS, Memory{K}(undef, 0), Memory{V}(undef, 0), 0, 0, false)
 end
 
 function OrderedDict{K,V}(kv) where {K,V}
@@ -212,7 +218,6 @@ end
 function ht_keyindex(h::OrderedDict{K,V}, key) where {K,V}
     slots = h.slots
     sz = length(slots)
-    sz == 0 && return -1
     keys = h.keys
     index = hashindex(key, sz)
     @inbounds while true
@@ -229,7 +234,6 @@ end
 function ht_slotindex(h::OrderedDict{K,V}, key) where {K,V}
     slots = h.slots
     sz = length(slots)
-    sz == 0 && return -1
     keys = h.keys
     index = hashindex(key, sz)
     @inbounds while true
@@ -248,11 +252,6 @@ end
 function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
     slots = h.slots
     sz = length(slots)
-    if sz == 0
-        rehash!(h, 16)
-        slots = h.slots
-        sz = length(slots)
-    end
     keys = h.keys
     index = hashindex(key, sz)
     avail = 0
@@ -282,6 +281,13 @@ end
 end
 
 function _setindex!(h::OrderedDict, v, key, index)
+    if length(h.slots) <= 1
+        # Empty dict still aliasing the shared sentinel: grow to a real table,
+        # then recompute the insertion slot in it. Keeps ht_keyindex2 (the
+        # update/lookup path) free of any emptiness branch.
+        rehash!(h, 16)
+        index = -ht_keyindex2(h, key)
+    end
     nk = _append!(h, key, v)
     @inbounds h.slots[index] = nk
     h.dirty = true
