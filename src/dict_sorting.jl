@@ -6,27 +6,36 @@ function sort!(d::OrderedDict; byvalue::Bool=false, args...)
         rehash!(d)
     end
 
-    data = byvalue ? d.vals : d.keys
+    n = d.len
+    keys = d.keys
+    vals = d.vals
+    # Only the live prefix 1:n is meaningful; the Memory tail is undef.
+    data = view(byvalue ? vals : keys, 1:n)
 
     # Filter out the kwargs supported by issorted (notably, :alg needs to be removed)
     issorted_kw = NamedTuple(k => v for (k, v) in args if k in (:lt, :by, :rev, :order))
     issorted(data; issorted_kw...) && return d
 
     p = sortperm(data; args...)
-    d.keys = d.keys[p]
-    d.vals = d.vals[p]
+    newkeys = similar(keys, n)
+    newvals = similar(vals, n)
+    @inbounds for i in 1:n
+        newkeys[i] = keys[p[i]]
+        newvals[i] = vals[p[i]]
+    end
+    @inbounds copyto!(keys, 1, newkeys, 1, n)
+    @inbounds copyto!(vals, 1, newvals, 1, n)
     rehash!(d)
     return d
 end
 
 # Compared to just sorting the underlying OrderedDict, this method calls sort!
-# directly on the keys (no need to sort d.vals::Vector{Nothing}). This saves
-# the allocation of the permutation vector in sortperm, and subsequent
-# allocations of new d.keys and d.vals vectors.
+# directly on the keys (no need to sort d.vals::Memory{Nothing}). This saves
+# the allocation of the permutation vector in sortperm.
 function sort!(s::OrderedSet; kwargs...)
     d = s.dict
     d.ndel > 0 && rehash!(d)
-    sort!(d.keys; kwargs...)
+    sort!(view(d.keys, 1:d.len); kwargs...)
     rehash!(d)
     return s
 end

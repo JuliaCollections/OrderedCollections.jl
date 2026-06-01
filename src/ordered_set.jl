@@ -21,7 +21,7 @@ struct OrderedSet{T}  <: AbstractSet{T}
         slots = copy(d.slots)
         keys = copy(d.keys)
         vals = similar(d.vals, Nothing)
-        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, d.ndel, d.maxprobe, d.dirty))
+        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, d.len, d.ndel, d.dirty))
     end
 end
 
@@ -53,11 +53,11 @@ copymutable(s::OrderedSet) = copy(s)
 # NOTE: manually optimized to take advantage of OrderedDict representation
 function iterate(s::OrderedSet)
     s.dict.ndel > 0 && rehash!(s.dict)
-    length(s.dict.keys) < 1 && return nothing
+    s.dict.len < 1 && return nothing
     return (s.dict.keys[1], 2)
 end
 function iterate(s::OrderedSet, i)
-    length(s.dict.keys) < i && return nothing
+    s.dict.len < i && return nothing
     return (s.dict.keys[i], i+1)
 end
 
@@ -87,7 +87,11 @@ end
 function hash(s::OrderedSet, h::UInt)
     h = hash(orderedset_seed, h)
     s.dict.ndel > 0 && rehash!(s.dict)
-    hash(s.dict.keys, h)
+    d = s.dict
+    @inbounds for i in 1:d.len
+        h = hash(d.keys[i], h)
+    end
+    return h
 end
 
 # Deprecated functionality, see
@@ -102,7 +106,7 @@ end
 function lastindex(s::OrderedSet)
     Base.depwarn("indexing is deprecated for OrderedSet, please rewrite your code to use iteration", :lastindex)
     s.dict.ndel > 0 && rehash!(s.dict)
-    return lastindex(s.dict.keys)
+    return s.dict.len
 end
 
 function nextind(::OrderedSet, i::Int)
