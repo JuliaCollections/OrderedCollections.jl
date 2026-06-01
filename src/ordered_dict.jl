@@ -327,7 +327,7 @@ function get!(h::OrderedDict{K,V}, key0, default) where {K,V}
 
     index = ht_keyindex2(h, key)
 
-    index > 0 && return h.vals[index]
+    index > 0 && return @inbounds h.vals[index]
 
     v = convert(V,  default)
     _setindex!(h, v, key, -index)
@@ -342,7 +342,7 @@ function get!(default::Base.Callable, h::OrderedDict{K,V}, key0) where {K,V}
 
     index = ht_keyindex2(h, key)
 
-    index > 0 && return h.vals[index]
+    index > 0 && return @inbounds h.vals[index]
 
     h.dirty = false
     v = convert(V,  default())
@@ -350,8 +350,8 @@ function get!(default::Base.Callable, h::OrderedDict{K,V}, key0) where {K,V}
         index = ht_keyindex2(h, key)
     end
     if index > 0
-        h.keys[index] = key
-        h.vals[index] = v
+        @inbounds h.keys[index] = key
+        @inbounds h.vals[index] = v
     else
         _setindex!(h, v, key, -index)
     end
@@ -360,17 +360,18 @@ end
 
 function getindex(h::OrderedDict{K,V}, key) where {K,V}
     index = ht_keyindex(h, key)
-    return (index<0) ? throw(KeyError(key)) : h.vals[index]::V
+    # index, when >= 0, is a valid position returned by ht_keyindex
+    return (index<0) ? throw(KeyError(key)) : (@inbounds h.vals[index]::V)
 end
 
 function get(h::OrderedDict{K,V}, key, default) where {K,V}
     index = ht_keyindex(h, key)
-    return (index<0) ? default : h.vals[index]::V
+    return (index<0) ? default : (@inbounds h.vals[index]::V)
 end
 
 function get(default::Base.Callable, h::OrderedDict{K,V}, key) where {K,V}
     index = ht_keyindex(h, key)
-    return (index<0) ? default() : h.vals[index]::V
+    return (index<0) ? default() : (@inbounds h.vals[index]::V)
 end
 
 haskey(h::OrderedDict, key) = (ht_keyindex(h, key) >= 0)
@@ -378,7 +379,7 @@ in(key, v::Base.KeySet{K,T}) where {K,T<:OrderedDict{K}} = (ht_keyindex(v.dict, 
 
 function getkey(h::OrderedDict{K,V}, key, default) where {K,V}
     index = ht_keyindex(h, key)
-    return (index<0) ? default : h.keys[index]::K
+    return (index<0) ? default : (@inbounds h.keys[index]::K)
 end
 
 function _pop!(h::OrderedDict, index)
