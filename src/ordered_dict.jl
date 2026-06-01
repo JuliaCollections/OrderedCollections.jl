@@ -287,9 +287,14 @@ function _setindex!(h::OrderedDict, v, key, index)
     h.dirty = true
 
     sz = length(h.slots)
-    cnt = nk - h.ndel
-    # Rehash now if necessary: > 3/4 dead, > 2/3 live, or keys/vals capacity hit.
-    if h.ndel >= ((3*nk)>>2) > 4 || cnt*3 > sz*2 || nk >= sz
+    # nk == h.len: live + dead (tombstone/orphan) positions, and == keys/vals fill.
+    # Two reasons to rehash:
+    #  - load/capacity: slot occupancy <= nk, so >2/3 full bounds probe length and
+    #    keeps room to append (this also guarantees nk < sz);
+    #  - reclamation: >3/4 of positions are dead (tombstones/orphans).
+    # rehash! sizes to the live count, so a churn-heavy table compacts (may shrink).
+    if 3*nk > 2*sz || 4*h.ndel >= 3*nk
+        cnt = nk - h.ndel
         rehash!(h, cnt > 64000 ? cnt*2 : cnt*4)
     end
 end
