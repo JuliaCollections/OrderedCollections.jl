@@ -12,14 +12,15 @@ refers to insertion order, which allows deterministic iteration over the diction
 """
 mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     slots::Memory{Int32}
-    keys::Vector{K}
-    vals::Vector{V}
+    keys::Memory{K}
+    vals::Memory{V}
+    len::Int
     ndel::Int
     dirty::Bool
 end
 
 function OrderedDict{K,V}() where {K,V}
-    OrderedDict{K,V}(Memory{Int32}(undef, 0), Vector{K}(), Vector{V}(), 0, false)
+    OrderedDict{K,V}(Memory{Int32}(undef, 0), Memory{K}(undef, 0), Memory{V}(undef, 0), 0, 0, false)
 end
 
 function OrderedDict{K,V}(kv) where {K,V}
@@ -46,7 +47,7 @@ function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
         rehash!(d)
     end
     @assert d.ndel == 0
-    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, false)
+    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), d.len, 0, false)
 end
 
 OrderedDict() = OrderedDict{Any,Any}()
@@ -87,7 +88,7 @@ end
 empty(d::OrderedDict{K,V}) where {K,V} = OrderedDict{K,V}()
 empty(d::OrderedDict, ::Type{K}, ::Type{V}) where {K, V} = OrderedDict{K, V}()
 
-length(d::OrderedDict) = length(d.keys) - d.ndel
+length(d::OrderedDict) = d.len - d.ndel
 isempty(d::OrderedDict) = (length(d) == 0)
 
 """
@@ -123,53 +124,54 @@ isslotmissing(slot_value::Integer) = slot_value < 0
 
 function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K,V}
     olds = h.slots
-    keys = h.keys
-    vals = h.vals
+    oldk = h.keys
+    oldv = h.vals
     sz = length(olds)
+    oldlen = h.len
     newsz = _tablesz(newsz)
     h.dirty = true
     count0 = length(h)
     if count0 == 0
-        h.slots = Memory{Int32}(undef, newsz)
-        fill!(h.slots, 0)
-        resize!(h.keys, 0)
-        resize!(h.vals, 0)
+        h.slots = Memory{Int32}(undef, newsz); fill!(h.slots, 0)
+        h.keys = Memory{K}(undef, newsz)
+        h.vals = Memory{V}(undef, newsz)
+        h.len = 0
         h.ndel = 0
         return h
     end
 
-    slots = Memory{Int32}(undef, newsz)
-    fill!(slots, 0)
+    slots = Memory{Int32}(undef, newsz); fill!(slots, 0)
+    newkeys = Memory{K}(undef, newsz)
+    newvals = Memory{V}(undef, newsz)
 
     if h.ndel > 0
         # Mark live positions by walking the old slot table, then compact in
         # ascending position order so insertion order is preserved.
-        live = falses(length(keys))
+        live = falses(oldlen)
         @inbounds for index in 1:sz
             si = olds[index]
             si > 0 && (live[si] = true)
         end
-        newkeys = similar(keys, count0)
-        newvals = similar(vals, count0)
         to = 1
-        @inbounds for from in 1:length(keys)
+        @inbounds for from in 1:oldlen
             live[from] || continue
-            k = keys[from]
+            k = oldk[from]
             index = hashindex(k, newsz)
             while slots[index] != 0
                 index = (index & (newsz-1)) + 1
             end
             slots[index] = to
             newkeys[to] = k
-            newvals[to] = vals[from]
+            newvals[to] = oldv[from]
             to += 1
         end
-        h.keys = newkeys
-        h.vals = newvals
+        h.len = to - 1
         h.ndel = 0
     else
-        @inbounds for i = 1:count0
-            k = keys[i]
+        @inbounds copyto!(newkeys, 1, oldk, 1, oldlen)
+        @inbounds copyto!(newvals, 1, oldv, 1, oldlen)
+        @inbounds for i = 1:oldlen
+            k = newkeys[i]
             index = hashindex(k, newsz)
             while slots[index] != 0
                 index = (index & (newsz-1)) + 1
@@ -179,6 +181,8 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
     end
 
     h.slots = slots
+    h.keys = newkeys
+    h.vals = newvals
     return h
 end
 
@@ -198,8 +202,7 @@ end
 
 function empty!(h::OrderedDict{K,V}) where {K,V}
     fill!(h.slots, 0)
-    empty!(h.keys)
-    empty!(h.vals)
+    h.len = 0
     h.ndel = 0
     h.dirty = true
     return h
@@ -267,19 +270,26 @@ function ht_keyindex2(h::OrderedDict{K,V}, key) where {K,V}
     end
 end
 
+# Append a new entry at position len+1. Capacity is guaranteed by the rehash
+# trigger in _setindex! (cap(keys) == length(slots) == sz, and len < sz holds
+# entering each append), so no bounds-grow check is needed.
+@inline function _append!(h::OrderedDict, key, v)
+    nk = h.len + 1
+    h.len = nk
+    @inbounds h.keys[nk] = key
+    @inbounds h.vals[nk] = v
+    return nk
+end
+
 function _setindex!(h::OrderedDict, v, key, index)
-    hk, hv = h.keys, h.vals
-    push!(hk, key)
-    push!(hv, v)
-    nk = length(hk)
+    nk = _append!(h, key, v)
     @inbounds h.slots[index] = nk
     h.dirty = true
 
     sz = length(h.slots)
     cnt = nk - h.ndel
-    # Rehash now if necessary
-    if h.ndel >= ((3*nk)>>2) > 4 || cnt*3 > sz*2
-        # > 3/4 deleted or > 2/3 full
+    # Rehash now if necessary: > 3/4 dead, > 2/3 live, or keys/vals capacity hit.
+    if h.ndel >= ((3*nk)>>2) > 4 || cnt*3 > sz*2 || nk >= sz
         rehash!(h, cnt > 64000 ? cnt*2 : cnt*4)
     end
 end
@@ -373,7 +383,7 @@ end
 
 function pop!(h::OrderedDict)
     h.ndel > 0 && rehash!(h)
-    key = h.keys[end]
+    key = h.keys[h.len]
     index = ht_slotindex(h, key)
     return key => _pop!(h, index)
 end
@@ -413,11 +423,11 @@ end
 
 function iterate(t::OrderedDict{K,V}) where {K,V}
     t.ndel > 0 && rehash!(t)
-    length(t.keys) < 1 && return nothing
+    t.len < 1 && return nothing
     @inbounds return (Pair{K,V}(t.keys[1], t.vals[1]), 2)
 end
 function iterate(t::OrderedDict{K,V}, i) where {K,V}
-    length(t.keys) < i && return nothing
+    t.len < i && return nothing
     @inbounds return (Pair{K,V}(t.keys[i], t.vals[i]), i+1)
 end
 
@@ -425,7 +435,7 @@ end
 function iterate(rt::Iterators.Reverse{<:OrderedDict{K,V}}) where {K,V}
     t = rt.itr
     t.ndel > 0 && rehash!(t)
-    n = length(t.keys)
+    n = t.len
     n < 1 && return nothing
     @inbounds return (Pair{K,V}(t.keys[n], t.vals[n]), n - 1)
 end
@@ -460,7 +470,7 @@ merge(combine::Function, d::OrderedDict, others::AbstractDict...) = mergewith(co
 function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
     vals = dict.vals
-    elements = length(vals) - dict.ndel
+    elements = length(dict)
     elements == 0 && return iter
     for i in dict.slots
         if i > 0
@@ -472,4 +482,4 @@ function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     return iter
 end
 
-last(h::OrderedDict) = h.keys[end] => h.vals[end]
+last(h::OrderedDict) = h.keys[h.len] => h.vals[h.len]

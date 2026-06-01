@@ -4,7 +4,7 @@ using OrderedCollections, Test
 
     @testset "Constructors" begin
         let d0 = OrderedDict{Int,Float64}()
-            @test isa(@inferred(OrderedDict{Int,Float64}(d0.slots, d0.keys, d0.vals, 0, false)), OrderedDict{Int,Float64})
+            @test isa(@inferred(OrderedDict{Int,Float64}(d0.slots, d0.keys, d0.vals, 0, 0, false)), OrderedDict{Int,Float64})
         end
         @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
         @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
