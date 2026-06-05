@@ -84,6 +84,14 @@ function filter!(f::Function, s::OrderedSet)
     return s
 end
 
+function filter(f, ks::Base.KeySet{T, <:OrderedDict{T}}) where {T}
+    out = OrderedSet{T}()
+    for k in ks
+        f(k) && push!(out, k)
+    end
+    return out
+end
+
 function hash(s::OrderedSet, h::UInt)
     h = hash(orderedset_seed, h)
     s.dict.ndel > 0 && rehash!(s.dict)
