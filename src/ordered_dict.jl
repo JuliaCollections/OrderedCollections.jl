@@ -1,5 +1,3 @@
-using Base: isbitsunion
-
 # These can be changed, to trade off better performance for space
 const global maxallowedprobe = isdefined(Base, :maxallowedprobe) ? Base.maxallowedprobe : 16
 const global maxprobeshift   = isdefined(Base, :maxprobeshift) ? Base.maxprobeshift : 6
@@ -14,13 +12,14 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     slots::Vector{Int32}
     keys::Vector{K}
     vals::Vector{V}
+    live::Vector{Bool}
     ndel::Int
     maxprobe::Int
     dirty::Bool
 end
 
 function OrderedDict{K,V}() where {K,V}
-    OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), 0, 0, false)
+    OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), Vector{Bool}(), 0, 0, false)
 end
 
 function OrderedDict{K,V}(kv) where {K,V}
@@ -47,7 +46,7 @@ function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
         rehash!(d)
     end
     @assert d.ndel == 0
-    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), 0, d.maxprobe, false)
+    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), fill(true, length(d.keys)), 0, d.maxprobe, false)
 end
 
 OrderedDict() = OrderedDict{Any,Any}()
@@ -123,10 +122,8 @@ isslotfilled(slot_value::Integer) = slot_value > 0
 isslotmissing(slot_value::Integer) = slot_value < 0
 
 function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K,V}
-    olds = h.slots
     keys = h.keys
     vals = h.vals
-    sz = length(olds)
     newsz = _tablesz(newsz)
     h.dirty = true
     count0 = length(h)
@@ -135,6 +132,7 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
         fill!(h.slots, 0)
         resize!(h.keys, 0)
         resize!(h.vals, 0)
+        resize!(h.live, 0)
         h.ndel = 0
         return h
     end
@@ -144,7 +142,6 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
 
     if h.ndel > 0
         ndel0 = h.ndel
-        ptrs = !isbitstype(K) && !isbitsunion(K)
         to = 1
         # TODO: to get the best performance we need to avoid reallocating these.
         # This algorithm actually works in place, unless the dict is modified
@@ -152,43 +149,30 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
         newkeys = similar(keys, count0)
         newvals = similar(vals, count0)
         @inbounds for from = 1:length(keys)
-            if !ptrs || isassigned(keys, from)
+            # `live` is the source of truth for which entries are deleted holes;
+            # a live entry is always assigned, so reading `keys[from]` is safe.
+            if h.live[from]
                 k = keys[from]
-                hashk = hash(k)%Int
-                isdeleted = false
-                if !ptrs
-                    iter = 0
-                    index = (hashk & (sz-1)) + 1
-                    while iter <= h.maxprobe
-                        si = olds[index]
-                        si == from && break
-                        # if we find si == 0, then the key was deleted and it's slot was reused/overwritten
-                        (si == -from || si == 0) && (isdeleted = true; break)
-                        index = (index & (sz-1)) + 1
-                        iter += 1
-                    end
-                    iter > h.maxprobe && (isdeleted = true)  # Another case where the slot was reused/overwritten
+                index0 = index = hashindex(k, newsz)
+                while slots[index] != 0
+                    index = (index & (newsz-1)) + 1
                 end
-                if !isdeleted
-                    index0 = index = (hashk & (newsz-1)) + 1
-                    while slots[index] != 0
-                        index = (index & (newsz-1)) + 1
-                    end
-                    probe = (index - index0) & (newsz-1)
-                    probe > maxprobe && (maxprobe = probe)
-                    slots[index] = to
-                    newkeys[to] = k
-                    newvals[to] = vals[from]
-                    to += 1
-                end
-                if h.ndel != ndel0
-                    # if items are removed by finalizers, retry
-                    return rehash!(h, newsz)
-                end
+                probe = (index - index0) & (newsz-1)
+                probe > maxprobe && (maxprobe = probe)
+                slots[index] = to
+                newkeys[to] = k
+                newvals[to] = vals[from]
+                to += 1
+            end
+            if h.ndel != ndel0
+                # if items are removed by finalizers, retry
+                return rehash!(h, newsz)
             end
         end
         h.keys = newkeys
         h.vals = newvals
+        resize!(h.live, length(newkeys))
+        fill!(h.live, true)
         h.ndel = 0
     else
         @inbounds for i = 1:count0
@@ -230,6 +214,7 @@ function empty!(h::OrderedDict{K,V}) where {K,V}
     fill!(h.slots, 0)
     empty!(h.keys)
     empty!(h.vals)
+    empty!(h.live)
     h.ndel = 0
     h.dirty = true
     return h
@@ -311,6 +296,7 @@ function _setindex!(h::OrderedDict, v, key, index)
     hk, hv = h.keys, h.vals
     push!(hk, key)
     push!(hv, v)
+    push!(h.live, true)
     nk = length(hk)
     @inbounds h.slots[index] = nk
     h.dirty = true
@@ -411,18 +397,36 @@ function _pop!(h::OrderedDict, index)
     return val
 end
 
+function _lastlive(h::OrderedDict)
+    i = length(h.keys)
+    @inbounds while i >= 1 && !h.live[i]
+        i -= 1
+    end
+    return i
+end
+function _firstlive(h::OrderedDict)
+    n = length(h.keys)
+    i = 1
+    @inbounds while i <= n && !h.live[i]
+        i += 1
+    end
+    return i > n ? 0 : i
+end
+
 function pop!(h::OrderedDict)
-    h.ndel > 0 && rehash!(h)
-    key = h.keys[end]
+    i = _lastlive(h)
+    i == 0 && throw(ArgumentError("dict must be non-empty"))
+    key = @inbounds h.keys[i]
     index = ht_keyindex(h, key, false)
     return key => _pop!(h, index)
 end
 
 function popfirst!(h::OrderedDict)
-    h.ndel > 0 && rehash!(h)
-    key = h.keys[1]
+    i = _firstlive(h)
+    i == 0 && throw(ArgumentError("dict must be non-empty"))
+    key = @inbounds h.keys[i]
     index = ht_keyindex(h, key, false)
-    key => _pop!(h, index)
+    return key => _pop!(h, index)
 end
 
 function pop!(h::OrderedDict, key)
@@ -438,6 +442,7 @@ end
 function _delete!(h::OrderedDict, index)
     @inbounds ki = h.slots[index]
     @inbounds h.slots[index] = -ki
+    @inbounds h.live[ki] = false
     @inbounds Base._unsetindex!(h.keys, Int(ki))
     @inbounds Base._unsetindex!(h.vals, Int(ki))
     h.ndel += 1
@@ -451,28 +456,23 @@ function delete!(h::OrderedDict, key)
     return h
 end
 
-function iterate(t::OrderedDict{K,V}) where {K,V}
-    t.ndel > 0 && rehash!(t)
-    length(t.keys) < 1 && return nothing
-    @inbounds return (Pair{K,V}(t.keys[1], t.vals[1]), 2)
-end
-function iterate(t::OrderedDict{K,V}, i) where {K,V}
-    length(t.keys) < i && return nothing
-    @inbounds return (Pair{K,V}(t.keys[i], t.vals[i]), i+1)
+function iterate(t::OrderedDict{K,V}, i::Int = 1) where {K,V}
+    n = length(t.keys)
+    @inbounds while i <= n
+        t.live[i] && return (Pair{K,V}(t.keys[i], t.vals[i]), i + 1)
+        i += 1
+    end
+    return nothing
 end
 
 # lazy reverse iteration
-function iterate(rt::Iterators.Reverse{<:OrderedDict{K,V}}) where {K,V}
+function iterate(rt::Iterators.Reverse{<:OrderedDict{K,V}}, i::Int = length(rt.itr.keys)) where {K,V}
     t = rt.itr
-    t.ndel > 0 && rehash!(t)
-    n = length(t.keys)
-    n < 1 && return nothing
-    @inbounds return (Pair{K,V}(t.keys[n], t.vals[n]), n - 1)
-end
-function iterate(rt::Iterators.Reverse{<:OrderedDict{K,V}}, i) where {K,V}
-    t = rt.itr
-    i < 1 && return nothing
-    @inbounds return (Pair{K,V}(t.keys[i], t.vals[i]), i - 1)
+    @inbounds while i >= 1
+        t.live[i] && return (Pair{K,V}(t.keys[i], t.vals[i]), i - 1)
+        i -= 1
+    end
+    return nothing
 end
 
 
@@ -500,16 +500,15 @@ merge(combine::Function, d::OrderedDict, others::AbstractDict...) = mergewith(co
 function Base.map!(f, iter::Base.ValueIterator{<:OrderedDict})
     dict = iter.dict
     vals = dict.vals
-    elements = length(vals) - dict.ndel
-    elements == 0 && return iter
-    for i in dict.slots
-        if i > 0
-            @inbounds vals[i] = f(vals[i])
-            elements -= 1
-            elements == 0 && break
-        end
+    live = dict.live
+    @inbounds for i in 1:length(vals)
+        live[i] && (vals[i] = f(vals[i]))
     end
     return iter
 end
 
-last(h::OrderedDict) = h.keys[end] => h.vals[end]
+function last(h::OrderedDict)
+    i = _lastlive(h)
+    i == 0 && throw(ArgumentError("collection must be non-empty"))
+    @inbounds return h.keys[i] => h.vals[i]
+end
