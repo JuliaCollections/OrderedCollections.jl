@@ -21,7 +21,8 @@ struct OrderedSet{T}  <: AbstractSet{T}
         slots = copy(d.slots)
         keys = copy(d.keys)
         vals = similar(d.vals, Nothing)
-        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, d.ndel, d.maxprobe, d.dirty))
+        live = copy(d.live)
+        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, live, d.ndel, d.maxprobe, d.dirty, d.firstlive, d.lastlive))
     end
 end
 
@@ -50,22 +51,25 @@ empty!(s::OrderedSet{T}) where {T} = (empty!(s.dict); s)
 emptymutable(s::OrderedSet{T}, ::Type{U}=T) where {T,U} = OrderedSet{U}()
 copymutable(s::OrderedSet) = copy(s)
 
-# NOTE: manually optimized to take advantage of OrderedDict representation
-function iterate(s::OrderedSet)
-    s.dict.ndel > 0 && rehash!(s.dict)
-    length(s.dict.keys) < 1 && return nothing
-    return (s.dict.keys[1], 2)
-end
-function iterate(s::OrderedSet, i)
-    length(s.dict.keys) < i && return nothing
-    return (s.dict.keys[i], i+1)
+# NOTE: manually optimized to take advantage of OrderedDict representation.
+function iterate(s::OrderedSet, i::Int = 1)
+    d = s.dict
+    n = length(d.keys)
+    @inbounds while i <= n
+        d.live[i] && return (d.keys[i], i + 1)
+        i += 1
+    end
+    return nothing
 end
 
 # lazy reverse iteration
-function iterate(rs::Iterators.Reverse{<:OrderedSet}, i = length(rs.itr))
-    s = rs.itr
-    i < 1 && return nothing
-    return (s.dict.keys[i], i-1)
+function iterate(rs::Iterators.Reverse{<:OrderedSet}, i::Int = length(rs.itr.dict.keys))
+    d = rs.itr.dict
+    @inbounds while i >= 1
+        d.live[i] && return (d.keys[i], i - 1)
+        i -= 1
+    end
+    return nothing
 end
 
 pop!(s::OrderedSet) = pop!(s.dict)[1]
@@ -85,7 +89,11 @@ function filter!(f::Function, s::OrderedSet)
 end
 
 function hash(s::OrderedSet, h::UInt)
-    h = hash(orderedset_seed, h)
-    s.dict.ndel > 0 && rehash!(s.dict)
-    hash(s.dict.keys, h)
+    hv = hash(orderedset_seed, h)
+    d = s.dict
+    @inbounds for i in 1:length(d.keys)
+        d.live[i] || continue
+        hv = hash(d.keys[i], hv)
+    end
+    return hv
 end

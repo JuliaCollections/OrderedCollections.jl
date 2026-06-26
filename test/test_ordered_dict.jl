@@ -3,7 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
-        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), 0, 0, false)), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), Bool[], 0, 0, false, 1, 0)), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
         @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict([("a",1),("b",2)])), OrderedDict{String,Int})
@@ -550,6 +550,44 @@ using OrderedCollections, Test
             pass &= reverse(vs)[n] == v
         end
         @test pass
+    end
+
+    @testset "iteration does not mutate (pure read)" begin
+        d = OrderedDict{Int,Int}()
+        for i in 1:5; d[i] = i; end
+        delete!(d, 2); delete!(d, 4)
+        ndel_before = d.ndel
+        @test ndel_before == 2
+        for _ in d; end
+        @test d.ndel == ndel_before              # forward iteration
+        for _ in Iterators.reverse(d); end
+        @test d.ndel == ndel_before              # reverse iteration
+        # contents are still correct and skip the holes
+        @test collect(keys(d)) == [1, 3, 5]
+        @test [k for (k, v) in Iterators.reverse(d)] == [5, 3, 1]
+
+        # copy is a pure read of the source: it must not rehash `d`
+        c = copy(d)
+        @test d.ndel == ndel_before
+        @test c == d
+        @test collect(keys(c)) == [1, 3, 5]
+    end
+
+    @testset "last/pop!/popfirst! skip deleted holes" begin
+        d = OrderedDict(1 => :a, 2 => :b, 3 => :c)
+        delete!(d, 3)
+        @test last(d) == (2 => :b)
+
+        # holes at both ends; pop!/popfirst! must find the live extremes
+        d2 = OrderedDict(1=>10, 2=>20, 3=>30, 4=>40)
+        delete!(d2, 4); delete!(d2, 1)
+        @test pop!(d2) == (3 => 30)
+        @test popfirst!(d2) == (2 => 20)
+        @test isempty(d2)
+
+        @test_throws ArgumentError pop!(OrderedDict{Int,Int}())
+        @test_throws ArgumentError popfirst!(OrderedDict{Int,Int}())
+        @test_throws ArgumentError last(OrderedDict{Int,Int}())
     end
 
 end # @testset OrderedDict
