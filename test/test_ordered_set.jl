@@ -3,7 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedSet" begin
 
     @testset "Constructors" begin
-        @test isa(OrderedSet{Int}(keys(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), Bool[], 0, 0, false))), OrderedSet{Int})
+        @test isa(OrderedSet{Int}(keys(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), Bool[], 0, 0, false, 1, 0))), OrderedSet{Int})
         @test isa(OrderedSet{Int}(keys(OrderedDict([(1,2.0)]))), OrderedSet{Int})
         @test isa(OrderedSet(), OrderedSet{Any})
         @test isa(OrderedSet([1,2,3]), OrderedSet{Int})

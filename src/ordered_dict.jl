@@ -16,10 +16,12 @@ mutable struct OrderedDict{K,V} <: AbstractDict{K,V}
     ndel::Int
     maxprobe::Int
     dirty::Bool
+    firstlive::Int
+    lastlive::Int
 end
 
 function OrderedDict{K,V}() where {K,V}
-    OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), Vector{Bool}(), 0, 0, false)
+    OrderedDict{K,V}(zeros(Int32,16), Vector{K}(), Vector{V}(), Vector{Bool}(), 0, 0, false, 1, 0)
 end
 
 function OrderedDict{K,V}(kv) where {K,V}
@@ -42,11 +44,8 @@ function OrderedDict{K,V}(ps::Pair...) where {K,V}
 end
 
 function OrderedDict{K,V}(d::OrderedDict{K,V}) where {K,V}
-    if d.ndel > 0
-        rehash!(d)
-    end
-    @assert d.ndel == 0
-    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), fill(true, length(d.keys)), 0, d.maxprobe, false)
+    # Copy the representation verbatim (holes included) so copying never mutates `d`.
+    OrderedDict{K,V}(copy(d.slots), copy(d.keys), copy(d.vals), copy(d.live), d.ndel, d.maxprobe, d.dirty, d.firstlive, d.lastlive)
 end
 
 OrderedDict() = OrderedDict{Any,Any}()
@@ -134,6 +133,8 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
         resize!(h.vals, 0)
         resize!(h.live, 0)
         h.ndel = 0
+        h.firstlive = 1
+        h.lastlive = 0
         return h
     end
 
@@ -193,6 +194,9 @@ function rehash!(h::OrderedDict{K,V}, newsz::Integer = length(h.slots)) where {K
 
     h.slots = slots
     h.maxprobe = maxprobe
+    # after compaction there are no holes
+    h.firstlive = 1
+    h.lastlive = length(h.keys)
     return h
 end
 
@@ -216,6 +220,8 @@ function empty!(h::OrderedDict{K,V}) where {K,V}
     empty!(h.vals)
     empty!(h.live)
     h.ndel = 0
+    h.firstlive = 1
+    h.lastlive = 0
     h.dirty = true
     return h
 end
@@ -299,6 +305,7 @@ function _setindex!(h::OrderedDict, v, key, index)
     push!(h.live, true)
     nk = length(hk)
     @inbounds h.slots[index] = nk
+    h.lastlive = nk
     h.dirty = true
 
     sz = length(h.slots)
@@ -398,7 +405,7 @@ function _pop!(h::OrderedDict, index)
 end
 
 function _lastlive(h::OrderedDict)
-    i = length(h.keys)
+    i = h.lastlive
     @inbounds while i >= 1 && !h.live[i]
         i -= 1
     end
@@ -406,7 +413,7 @@ function _lastlive(h::OrderedDict)
 end
 function _firstlive(h::OrderedDict)
     n = length(h.keys)
-    i = 1
+    i = h.firstlive
     @inbounds while i <= n && !h.live[i]
         i += 1
     end
@@ -416,6 +423,7 @@ end
 function pop!(h::OrderedDict)
     i = _lastlive(h)
     i == 0 && throw(ArgumentError("dict must be non-empty"))
+    h.lastlive = i
     key = @inbounds h.keys[i]
     index = ht_keyindex(h, key, false)
     return key => _pop!(h, index)
@@ -424,6 +432,7 @@ end
 function popfirst!(h::OrderedDict)
     i = _firstlive(h)
     i == 0 && throw(ArgumentError("dict must be non-empty"))
+    h.firstlive = i
     key = @inbounds h.keys[i]
     index = ht_keyindex(h, key, false)
     return key => _pop!(h, index)

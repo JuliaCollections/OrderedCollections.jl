@@ -3,7 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
-        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), Bool[], 0, 0, false)), OrderedDict{Int,Float64})
+        @test isa(@inferred(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), Bool[], 0, 0, false, 1, 0)), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict()), OrderedDict{Any,Any})
         @test isa(@inferred(OrderedDict([(1,2.0)])), OrderedDict{Int,Float64})
         @test isa(@inferred(OrderedDict([("a",1),("b",2)])), OrderedDict{String,Int})
@@ -565,6 +565,12 @@ using OrderedCollections, Test
         # contents are still correct and skip the holes
         @test collect(keys(d)) == [1, 3, 5]
         @test [k for (k, v) in Iterators.reverse(d)] == [5, 3, 1]
+
+        # copy is a pure read of the source: it must not rehash `d`
+        c = copy(d)
+        @test d.ndel == ndel_before
+        @test c == d
+        @test collect(keys(c)) == [1, 3, 5]
     end
 
     @testset "last/pop!/popfirst! skip deleted holes" begin

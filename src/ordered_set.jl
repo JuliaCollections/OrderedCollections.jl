@@ -22,7 +22,7 @@ struct OrderedSet{T}  <: AbstractSet{T}
         keys = copy(d.keys)
         vals = similar(d.vals, Nothing)
         live = copy(d.live)
-        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, live, d.ndel, d.maxprobe, d.dirty))
+        new{T}(OrderedDict{T,Nothing}(slots, keys, vals, live, d.ndel, d.maxprobe, d.dirty, d.firstlive, d.lastlive))
     end
 end
 
