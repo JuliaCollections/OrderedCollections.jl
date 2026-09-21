@@ -17,6 +17,13 @@ module OrderedCollections
                  valtype, lastindex, nextind,
                  copymutable, emptymutable, dict_with_eltype
 
+    # public unsetindex! API introduced in 1.14 (julia#58943)
+    if isdefined(Base, :unsetindex!)
+        using Base: unsetindex!
+    else
+        unsetindex!(A, i) = Base._unsetindex!(A, i)
+    end
+
     export OrderedDict, OrderedSet, LittleDict, LittleSet
     export freeze
 
