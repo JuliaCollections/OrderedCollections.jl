@@ -3,7 +3,7 @@ using OrderedCollections, Test
 @testset "OrderedSet" begin
 
     @testset "Constructors" begin
-        @test isa(OrderedSet{Int}(keys(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), 0, 0, false))), OrderedSet{Int})
+        @test isa(OrderedSet{Int}(keys(OrderedDict{Int,Float64}(zeros(Int,16), Vector{Int}(), Vector{Float64}(), Bool[], 0, 0, false, 1, 0))), OrderedSet{Int})
         @test isa(OrderedSet{Int}(keys(OrderedDict([(1,2.0)]))), OrderedSet{Int})
         @test isa(OrderedSet(), OrderedSet{Any})
         @test isa(OrderedSet([1,2,3]), OrderedSet{Int})
@@ -267,5 +267,20 @@ using OrderedCollections, Test
             pass &= reverse(ks)[n] == k
         end
         @test pass
+    end
+
+    @testset "iteration with deletions" begin
+        s = OrderedSet(1:5)
+        delete!(s, 2)
+        @test s.dict.ndel == 1
+        @test collect(Iterators.reverse(s)) == [5, 4, 3, 1]
+        @test collect(s) == [1, 3, 4, 5]
+
+        # hash is independent of how many deleted holes the backing dict carries
+        s_holes = OrderedSet(1:6)
+        delete!(s_holes, 3); delete!(s_holes, 5)
+        @test hash(s_holes) == hash(OrderedSet([1, 2, 4, 6]))
+        @test hash(s_holes) == hash(copy(s_holes))
+        @test s_holes.dict.ndel == 2 # hashing did not rehash
     end
 end # @testset OrderedSet
