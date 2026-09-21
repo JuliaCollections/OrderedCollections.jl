@@ -413,6 +413,21 @@ using OrderedCollections, Test
         @test filter(p->first(p) > 1, OrderedDict(1=>2, 3=>4)) isa OrderedDict
     end
 
+    @testset "Issue #147" begin
+        d = OrderedDict(5=>:a, 3=>:b, 1=>:c, 4=>:d, 2=>:e)
+        odd = filter(isodd, keys(d))
+        @test odd isa OrderedSet
+        @test collect(odd) == [5, 3, 1]
+        even = filter(iseven, keys(d))
+        @test even isa OrderedSet
+        @test collect(even) == [4, 2]
+        empt = filter(isodd, keys(OrderedDict{Int,Int}()))
+        @test empt isa OrderedSet
+        @test isempty(empt)
+        # plain Dict keys are untouched: still an unordered Set
+        @test filter(isodd, keys(Dict(1=>:a))) isa Set
+    end
+
     @testset "Issue #30" begin
         d = OrderedDict(:a=>1, :b=>2)
         d1 = OrderedDict(k=>v for (k,v) in d)
