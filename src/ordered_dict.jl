@@ -318,9 +318,13 @@ function _setindex!(h::OrderedDict, v, key, index)
 end
 
 function setindex!(h::OrderedDict{K,V}, v0, key0) where {K,V}
-    key = convert(K, key0)
-    if !isequal(key, key0)
-        throw(ArgumentError("$key0 is not a valid key for type $K"))
+    if key0 isa K
+        key = key0
+    else
+        key = convert(K, key0)
+        if !isequal(key, key0)
+            throw(ArgumentError("$key0 is not a valid key for type $K"))
+        end
     end
     v = convert(V, v0)
 
