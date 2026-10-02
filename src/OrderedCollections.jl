@@ -21,7 +21,7 @@ module OrderedCollections
     if isdefined(Base, :unsetindex!)
         using Base: unsetindex!
     else
-        unsetindex!(A, i) = Base._unsetindex!(A, i)
+        using Base: _unsetindex! as unsetindex!
     end
 
     export OrderedDict, OrderedSet, LittleDict, LittleSet
