@@ -143,6 +143,48 @@ using OrderedCollections: FrozenLittleDict, UnfrozenLittleDict
         @test od60[14] == 15
     end
 
+    @testset "pop!" begin
+        @testset "key" begin
+            expected = "bar"
+            ld = LittleDict("foo"=>expected)
+            ret = pop!(ld, "foo")
+
+            @test ret == expected
+        end
+
+        @testset "key dne" begin
+            @test_throws KeyError pop!(LittleDict(), "foo")
+        end
+
+        @testset "key -- default" begin
+            expected = "bar"
+            ld = LittleDict("foo"=>expected)
+            ret = pop!(ld, "foo", "baz")
+
+            @test ret == expected
+        end
+
+        @testset "key dne -- default" begin
+            expected = "baz"
+            ret = pop!(LittleDict(), "foo", expected)
+
+            @test ret == expected
+        end
+    end
+
+    @testset "delete!" begin
+        @testset "key" begin
+            ld = LittleDict("foo"=>"bar")
+            ret = delete!(ld, "foo")
+
+            @test ret == LittleDict()
+        end
+
+        @testset "key dne" begin
+            @test delete!(LittleDict(), "foo") == LittleDict()
+        end
+    end
+
 
     ##############################
     # Copied and modified from Base/test/dict.jl

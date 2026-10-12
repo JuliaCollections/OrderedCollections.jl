@@ -241,7 +241,7 @@ function Base.pop!(dd::UnfrozenLittleDict)
     return pop!(dd.vals)
 end
 
-function Base.pop!(dd::UnfrozenLittleDict, key)
+function _pop!(dd::UnfrozenLittleDict, key, default=NotFoundSentinel())
     @assert length(dd.keys) == length(dd.vals)
 
     for ii in 1:length(dd.keys)
@@ -253,10 +253,17 @@ function Base.pop!(dd::UnfrozenLittleDict, key)
             return val
         end
     end
+
+    return default
+end
+
+function Base.pop!(dd::UnfrozenLittleDict, key, default=NotFoundSentinel())
+    val = _pop!(dd, key, default)
+    return val === NotFoundSentinel() ? throw(KeyError(key)) : val
 end
 
 function Base.delete!(dd::UnfrozenLittleDict, key)
-    pop!(dd, key)
+    _pop!(dd, key)
     return dd
 end
 
