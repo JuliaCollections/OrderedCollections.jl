@@ -318,10 +318,14 @@ function _setindex!(h::OrderedDict, v, key, index)
 end
 
 function setindex!(h::OrderedDict{K,V}, v0, key0) where {K,V}
-    key = convert(K, key0)
+    key = convert(K, key0)::K
     if !isequal(key, key0)
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
+    return setindex!(h, v0, key)
+end
+
+function setindex!(h::OrderedDict{K,V}, v0, key::K) where {K,V}
     v = convert(V, v0)
 
     index = ht_keyindex2(h, key)
@@ -337,11 +341,14 @@ function setindex!(h::OrderedDict{K,V}, v0, key0) where {K,V}
 end
 
 function get!(h::OrderedDict{K,V}, key0, default) where {K,V}
-    key = convert(K, key0)
+    key = convert(K, key0)::K
     if !isequal(key, key0)
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
+    return get!(h, key, default)
+end
 
+function get!(h::OrderedDict{K,V}, key::K, default) where {K,V}
     index = ht_keyindex2(h, key)
 
     index > 0 && return h.vals[index]
@@ -352,11 +359,14 @@ function get!(h::OrderedDict{K,V}, key0, default) where {K,V}
 end
 
 function get!(default::Base.Callable, h::OrderedDict{K,V}, key0) where {K,V}
-    key = convert(K, key0)
+    key = convert(K, key0)::K
     if !isequal(key, key0)
         throw(ArgumentError("$key0 is not a valid key for type $K"))
     end
+    return get!(default, h, key)
+end
 
+function get!(default::Base.Callable, h::OrderedDict{K,V}, key::K) where {K,V}
     index = ht_keyindex2(h, key)
 
     index > 0 && return h.vals[index]
@@ -452,8 +462,8 @@ function _delete!(h::OrderedDict, index)
     @inbounds ki = h.slots[index]
     @inbounds h.slots[index] = -ki
     @inbounds h.live[ki] = false
-    @inbounds Base._unsetindex!(h.keys, Int(ki))
-    @inbounds Base._unsetindex!(h.vals, Int(ki))
+    @inbounds unsetindex!(h.keys, Int(ki))
+    @inbounds unsetindex!(h.vals, Int(ki))
     h.ndel += 1
     h.dirty = true
     return h
