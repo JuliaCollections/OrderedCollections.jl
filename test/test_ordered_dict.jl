@@ -1,5 +1,17 @@
 using OrderedCollections, Test
 
+struct EqualityCountingKey
+    value::Int
+    comparisons::Base.RefValue{Int}
+end
+
+Base.hash(key::EqualityCountingKey, h::UInt) = hash(key.value, h)
+
+function Base.isequal(x::EqualityCountingKey, y::EqualityCountingKey)
+    x.comparisons[] += 1
+    return x.value == y.value
+end
+
 @testset "OrderedDict" begin
 
     @testset "Constructors" begin
@@ -61,6 +73,25 @@ using OrderedCollections, Test
         @test valtype(dc) == Float64
         @test keys(dc) == keys(d)
         @test collect(values(dc)) == collect(values(d))
+    end
+
+    @testset "setindex! key conversion" begin
+        comparisons = Ref(0)
+        key = EqualityCountingKey(1, comparisons)
+        d = OrderedDict{EqualityCountingKey,Int}()
+        @test @inferred(setindex!(d, 2, key)) === d
+        # Insertion into an empty dictionary needs no equality comparison when
+        # the key already has the dictionary's key type.
+        @test comparisons[] == 0
+        @test d[key] == 2
+
+        converted = OrderedDict{Float32,Int}()
+        @test setindex!(converted, 2, 1) === converted
+        @test only(keys(converted)) === 1.0f0
+        @test converted[1.0f0] == 2
+        @test_throws ArgumentError setindex!(converted, 3, 16_777_217)
+        @test length(converted) == 1
+        @test_throws InexactError setindex!(OrderedDict{Int,Int}(), 2, 1.5)
     end
 
     @testset "Issue #60" begin
